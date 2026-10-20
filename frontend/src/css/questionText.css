@@ -1,0 +1,16 @@
+.question-text {
+  font-size: 16px;
+  line-height: 1.8;
+  color: #222;
+  overflow-wrap: anywhere;
+}
+
+.math-question .katex-display {
+  margin: 12px 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.math-question .katex {
+  font-size: 1.1em;
+}
