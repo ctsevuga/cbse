@@ -2,6 +2,7 @@ import asyncHandler from "../middleware/asyncHandler.js";
 import mongoose from "mongoose";
 
 import StudentAnswer from "../models/studentAnswerModel.js";
+import AnswerEvaluation from "../models/answerEvaluationModel.js";
 import StudentAttempt from "../models/studentAttemptModel.js";
 import AssessmentQuestion from "../models/assessmentQuestionModel.js";
 import Student from "../models/studentModel.js";
@@ -1115,37 +1116,60 @@ export const getStudentAnswerById =
 /*
  * Get answers for an attempt.
  */
-export const getAnswersByAttempt =
-  asyncHandler(async (req, res) => {
+
+export const getAnswersByAttempt = asyncHandler(
+  async (req, res) => {
     const schoolId = getUserSchool(req);
 
-    validateObjectId(
+    validateObjectId(req.params.attemptId, "attempt ID");
+
+    const attempt = await validateAttempt(
       req.params.attemptId,
-      "attempt ID",
+      schoolId
     );
 
-    const attempt =
-      await validateAttempt(
-        req.params.attemptId,
-        schoolId,
-      );
+    await validateAttemptOwner(attempt, req);
 
-    await validateAttemptOwner(
-      attempt,
-      req,
+    const answers = await populateStudentAnswer(
+      StudentAnswer.find({
+        attempt: attempt._id,
+      }).sort({
+        createdAt: 1,
+      })
     );
 
-    const answers =
-      await populateStudentAnswer(
-        StudentAnswer.find({
-          attempt: attempt._id,
-        }).sort({
-          createdAt: 1,
-        }),
-      );
+    // Get IDs of all student answers.
+    const answerIds = answers.map((answer) => answer._id);
 
-    res.json(await answers);
-  });
+    // Fetch evaluation documents linked to these answers.
+    const evaluations = await AnswerEvaluation.find({
+      studentAnswer: { $in: answerIds },
+    }).lean();
+
+    // Map evaluations by studentAnswer ID.
+    const evaluationMap = new Map(
+      evaluations.map((evaluation) => [
+        String(evaluation.studentAnswer?._id ??
+          evaluation.studentAnswer),
+        evaluation,
+      ])
+    );
+
+    // Attach the evaluation document to each answer.
+    const result = answers.map((answer) => {
+      const answerObject = answer.toObject();
+
+      return {
+        ...answerObject,
+        evaluation:
+          evaluationMap.get(String(answer._id)) ?? null,
+      };
+    });
+
+    res.json(result);
+  }
+);
+
 
 /*
  * Get the answer for one question in an attempt.

@@ -1,63 +1,234 @@
-import { useMemo } from "react";
-import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { useMemo, useState } from "react";
+import Swal from "sweetalert2";
 import {
   ArrowLeft,
   CheckCircle2,
   Code2,
-  Edit3,
   FileText,
   Image as ImageIcon,
   ListChecks,
   Pencil,
   Table2,
   XCircle,
+  ClipboardCheck,
+  Save,
 } from "lucide-react";
-import { useGetStudentAnswersQuery } from "../../slices/studentAnswerApiSlice";
-import MathText from '../../components/MathText';
+
+import { useGetAnswersByAttemptQuery } from "../../slices/studentAnswerApiSlice";
+
+import {
+  useSaveAnswerEvaluationMutation,
+  useCompleteAttemptEvaluationMutation,
+} from "../../slices/answerEvaluationApiSlice";
+import { useNavigate, useParams } from "react-router-dom";
+import MathText from "../../components/MathText";
+
 const StudentAnswersScreen = () => {
-  console.log("StudentAnswersScreen mounted");
   const navigate = useNavigate();
-  const { attemptId, assessmentQuestionId } = useParams();
-  const [searchParams] = useSearchParams();
+  const { attemptId } = useParams();
+  const [marksByAnswer, setMarksByAnswer] = useState({});
+  const [feedbackByAnswer, setFeedbackByAnswer] = useState({});
+  const [saveError, setSaveError] = useState({});
+  const [saveSuccess, setSaveSuccess] = useState({});
+  const [evaluatedByAnswer, setEvaluatedByAnswer] = useState({});
+  const [savingByAnswer, setSavingByAnswer] = useState({});
 
-  const queryArgs = useMemo(() => {
-    const args = {};
+  const [completeError, setCompleteError] = useState("");
+  const [completeSuccess, setCompleteSuccess] = useState("");
 
-    if (attemptId) {
-      args.attemptId = attemptId;
+  const [saveAnswerEvaluation, { isLoading: isSavingEvaluation }] =
+    useSaveAnswerEvaluationMutation();
+
+  const [completeAttemptEvaluation, { isLoading: isCompleting }] =
+    useCompleteAttemptEvaluationMutation();
+
+  const handleMarksChange = (answerId, value) => {
+    setMarksByAnswer((prev) => ({
+      ...prev,
+      [answerId]: value,
+    }));
+
+    setSaveSuccess((prev) => ({
+      ...prev,
+      [answerId]: false,
+    }));
+
+    setSaveError((prev) => ({
+      ...prev,
+      [answerId]: "",
+    }));
+  };
+  
+const isAnswerEvaluated = (answer) => {
+  return (
+    answer?.evaluation != null ||
+    answer?.answerEvaluation != null ||
+    answer?.evaluationStatus === "EVALUATED" ||
+    evaluatedByAnswer[answer?._id] === true
+  );
+};
+  const handleFeedbackChange = (answerId, value) => {
+    setFeedbackByAnswer((prev) => ({
+      ...prev,
+      [answerId]: value,
+    }));
+
+    setSaveSuccess((prev) => ({
+      ...prev,
+      [answerId]: false,
+    }));
+
+    setSaveError((prev) => ({
+      ...prev,
+      [answerId]: "",
+    }));
+  };
+
+  const handleSaveEvaluation = async (answer, maxMarks) => {
+    const answerId = answer?._id;
+
+    if (!answerId) {
+      setSaveError((prev) => ({
+        ...prev,
+        unknown: "Student answer ID is missing.",
+      }));
+      return;
     }
 
-    if (assessmentQuestionId) {
-      args.assessmentQuestionId = assessmentQuestionId;
+    // Prevent saving an already evaluated answer.
+    if (isAnswerEvaluated(answer) || savingByAnswer[answerId]) {
+      return;
     }
 
-    const studentId = searchParams.get("studentId");
+    const enteredMarks = marksByAnswer[answerId];
 
-    if (studentId) {
-      args.studentId = studentId;
+    if (
+      enteredMarks === undefined ||
+      enteredMarks === "" ||
+      !Number.isFinite(Number(enteredMarks))
+    ) {
+      setSaveError((prev) => ({
+        ...prev,
+        [answerId]: "Please enter the marks awarded.",
+      }));
+      return;
     }
 
-    const status = searchParams.get("status");
+    const awardedMarks = Number(enteredMarks);
 
-    if (status) {
-      args.status = status;
+    if (awardedMarks < 0 || awardedMarks > maxMarks) {
+      setSaveError((prev) => ({
+        ...prev,
+        [answerId]: `Marks must be between 0 and ${maxMarks}.`,
+      }));
+      return;
     }
 
-    return args;
-  }, [
-    attemptId,
-    assessmentQuestionId,
-    searchParams,
-  ]);
+    setSaveError((prev) => ({ ...prev, [answerId]: "" }));
+    setSaveSuccess((prev) => ({ ...prev, [answerId]: false }));
+    setSavingByAnswer((prev) => ({ ...prev, [answerId]: true }));
 
-  const {
-    data,
-    isLoading,
-    isError,
-    error,
-    refetch,
-  } = useGetStudentAnswersQuery(queryArgs);
+    try {
+      await saveAnswerEvaluation({
+        studentAnswerId: answerId,
+        marksAwarded: awardedMarks,
+        feedback: feedbackByAnswer[answerId] ?? "",
+      }).unwrap();
 
+      // Disable this answer immediately after successful saving.
+      setEvaluatedByAnswer((prev) => ({
+        ...prev,
+        [answerId]: true,
+      }));
+
+      setSaveSuccess((prev) => ({
+        ...prev,
+        [answerId]: true,
+      }));
+    } catch (err) {
+      const message = err?.data?.message || "Unable to save the evaluation.";
+
+      setSaveError((prev) => ({
+        ...prev,
+        [answerId]: message,
+      }));
+
+      // The backend confirms that the answer has already been evaluated.
+      if (
+        err?.status === 409 &&
+        (err?.data?.alreadyEvaluated === true ||
+          message.toLowerCase().includes("already been evaluated"))
+      ) {
+        setEvaluatedByAnswer((prev) => ({
+          ...prev,
+          [answerId]: true,
+        }));
+      }
+    } finally {
+      setSavingByAnswer((prev) => ({
+        ...prev,
+        [answerId]: false,
+      }));
+    }
+  };
+
+  
+
+const handleCompleteEvaluation = async () => {
+  if (!attemptId) {
+    await Swal.fire({
+      icon: "error",
+      title: "Missing Attempt ID",
+      text: "Student attempt ID is missing.",
+      confirmButtonText: "OK",
+    });
+    return;
+  }
+
+  try {
+    const result = await completeAttemptEvaluation(attemptId).unwrap();
+
+    await Swal.fire({
+      icon: "success",
+      title: "Evaluation Completed",
+      text:
+        result?.message ||
+        "Attempt evaluation completed successfully.",
+      confirmButtonText: "OK",
+    });
+
+    setCompleteError("");
+    setCompleteSuccess(
+      result?.message ||
+        "Attempt evaluation completed successfully."
+    );
+  } catch (err) {
+    const message =
+      err?.data?.message ||
+      err?.error ||
+      "Failed to complete attempt evaluation.";
+
+    await Swal.fire({
+      icon: "error",
+      title: "Unable to Complete Evaluation",
+      text: message,
+      confirmButtonText: "OK",
+      confirmButtonColor: "#4f46e5",
+    });
+
+    setCompleteError(message);
+    setCompleteSuccess("");
+  }
+};
+
+
+  // Fetch the selected attempt using its ID from the URL.
+  const { data, isLoading, isError, error, refetch } =
+    useGetAnswersByAttemptQuery(attemptId, {
+      skip: !attemptId,
+    });
+
+  // Normalize the API response.
   const answers = useMemo(() => {
     if (Array.isArray(data)) {
       return data;
@@ -67,8 +238,16 @@ const StudentAnswersScreen = () => {
       return data.answers;
     }
 
-    if (data) {
-      return [data];
+    if (Array.isArray(data?.studentAnswers)) {
+      return data.studentAnswers;
+    }
+
+    if (Array.isArray(data?.attempt?.answers)) {
+      return data.attempt.answers;
+    }
+
+    if (Array.isArray(data?.attempt?.studentAnswers)) {
+      return data.attempt.studentAnswers;
     }
 
     return [];
@@ -97,32 +276,28 @@ const StudentAnswersScreen = () => {
     switch (status) {
       case "SUBMITTED":
         return {
-          className:
-            "border-green-200 bg-green-50 text-green-700",
+          className: "border-green-200 bg-green-50 text-green-700",
           icon: CheckCircle2,
           label: "Submitted",
         };
 
       case "SAVED":
         return {
-          className:
-            "border-blue-200 bg-blue-50 text-blue-700",
+          className: "border-blue-200 bg-blue-50 text-blue-700",
           icon: CheckCircle2,
           label: "Saved",
         };
 
       case "IN_PROGRESS":
         return {
-          className:
-            "border-amber-200 bg-amber-50 text-amber-700",
+          className: "border-amber-200 bg-amber-50 text-amber-700",
           icon: Pencil,
           label: "In Progress",
         };
 
       default:
         return {
-          className:
-            "border-gray-200 bg-gray-50 text-gray-600",
+          className: "border-gray-200 bg-gray-50 text-gray-600",
           icon: XCircle,
           label: "Not Started",
         };
@@ -163,10 +338,7 @@ const StudentAnswersScreen = () => {
     const question = getQuestion(answer);
 
     return (
-      answer?.assessmentQuestion?.marks ??
-      question?.marks ??
-      answer?.marks ??
-      0
+      answer?.assessmentQuestion?.marks ?? question?.marks ?? answer?.marks ?? 0
     );
   };
 
@@ -191,15 +363,9 @@ const StudentAnswersScreen = () => {
   };
 
   const renderText = (value) => {
-    if (
-      value === null ||
-      value === undefined ||
-      String(value).trim() === ""
-    ) {
+    if (value === null || value === undefined || String(value).trim() === "") {
       return (
-        <span className="text-sm italic text-gray-400">
-          No answer provided
-        </span>
+        <span className="text-sm italic text-gray-400">No answer provided</span>
       );
     }
 
@@ -211,15 +377,9 @@ const StudentAnswersScreen = () => {
   };
 
   const renderHtml = (value) => {
-    if (
-      value === null ||
-      value === undefined ||
-      String(value).trim() === ""
-    ) {
+    if (value === null || value === undefined || String(value).trim() === "") {
       return (
-        <span className="text-sm italic text-gray-400">
-          No answer provided
-        </span>
+        <span className="text-sm italic text-gray-400">No answer provided</span>
       );
     }
 
@@ -236,9 +396,7 @@ const StudentAnswersScreen = () => {
   const renderCode = (value) => {
     if (!value?.code) {
       return (
-        <span className="text-sm italic text-gray-400">
-          No code provided
-        </span>
+        <span className="text-sm italic text-gray-400">No code provided</span>
       );
     }
 
@@ -282,9 +440,7 @@ const StudentAnswersScreen = () => {
                     key={cellIndex}
                     className="border-r border-gray-200 px-4 py-3 text-sm text-gray-700 last:border-r-0"
                   >
-                    {cell === null ||
-                    cell === undefined ||
-                    cell === ""
+                    {cell === null || cell === undefined || cell === ""
                       ? "—"
                       : String(cell)}
                   </td>
@@ -299,14 +455,10 @@ const StudentAnswersScreen = () => {
 
   const renderImage = (answer) => {
     const attachment = answer?.attachments?.find(
-      (item) =>
-        item?.type === "image" ||
-        item?.mimeType?.startsWith("image/"),
+      (item) => item?.type === "image" || item?.mimeType?.startsWith("image/"),
     );
 
-    const imageUrl =
-      getImageUrl(answer?.answer) ||
-      getImageUrl(attachment);
+    const imageUrl = getImageUrl(answer?.answer) || getImageUrl(attachment);
 
     if (!imageUrl) {
       return (
@@ -361,14 +513,9 @@ const StudentAnswersScreen = () => {
   const renderMcq = (answer) => {
     const question = getQuestion(answer);
 
-    const options =
-      question?.options ||
-      question?.mcqOptions ||
-      [];
+    const options = question?.options || question?.mcqOptions || [];
 
-    const selected =
-      answer?.selectedOption ??
-      answer?.answer;
+    const selected = answer?.selectedOption ?? answer?.answer;
 
     if (!options.length) {
       return (
@@ -390,22 +537,16 @@ const StudentAnswersScreen = () => {
           const optionValue =
             typeof option === "string"
               ? option
-              : option?.value ??
-                option?.text ??
-                option?.label ??
-                "";
+              : (option?.value ?? option?.text ?? option?.label ?? "");
 
           const optionLabel =
             typeof option === "string"
               ? String.fromCharCode(65 + index)
-              : option?.label ||
-                String.fromCharCode(65 + index);
+              : option?.label || String.fromCharCode(65 + index);
 
           const isSelected =
-            String(selected) ===
-              String(optionValue) ||
-            String(selected) ===
-              String(optionLabel);
+            String(selected) === String(optionValue) ||
+            String(selected) === String(optionLabel);
 
           return (
             <div
@@ -427,9 +568,7 @@ const StudentAnswersScreen = () => {
               </div>
 
               <div className="flex-1 pt-1">
-                <span className="text-sm text-gray-700">
-                  {optionValue}
-                </span>
+                <span className="text-sm text-gray-700">{optionValue}</span>
               </div>
 
               {isSelected && (
@@ -442,10 +581,7 @@ const StudentAnswersScreen = () => {
     );
   };
 
-  const renderCombinedSection = (
-    mode,
-    section,
-  ) => {
+  const renderCombinedSection = (mode, section) => {
     const value = section?.answer ?? section;
 
     let content;
@@ -463,16 +599,14 @@ const StudentAnswersScreen = () => {
       case "IMAGE":
         content = renderImage({
           answer: value,
-          attachments:
-            section?.attachments || [],
+          attachments: section?.attachments || [],
         });
         break;
 
       case "DRAWING":
         content = renderDrawing({
           answer: value,
-          attachments:
-            section?.attachments || [],
+          attachments: section?.attachments || [],
         });
         break;
 
@@ -485,15 +619,11 @@ const StudentAnswersScreen = () => {
           <div className="space-y-4">
             {typeof value === "string"
               ? renderHtml(value)
-              : renderHtml(
-                  value?.text ||
-                    value?.content,
-                )}
+              : renderHtml(value?.text || value?.content)}
 
             {renderImage({
               answer: value,
-              attachments:
-                section?.attachments || [],
+              attachments: section?.attachments || [],
             })}
           </div>
         );
@@ -530,16 +660,9 @@ const StudentAnswersScreen = () => {
 
     return (
       <div className="space-y-4">
-        {Object.entries(sections).map(
-          ([mode, section]) => (
-            <div key={mode}>
-              {renderCombinedSection(
-                mode,
-                section,
-              )}
-            </div>
-          ),
-        )}
+        {Object.entries(sections).map(([mode, section]) => (
+          <div key={mode}>{renderCombinedSection(mode, section)}</div>
+        ))}
       </div>
     );
   };
@@ -577,10 +700,7 @@ const StudentAnswersScreen = () => {
           <div className="space-y-5">
             {typeof answer?.answer === "string"
               ? renderHtml(answer.answer)
-              : renderHtml(
-                  answer?.answer?.text ||
-                    answer?.answer?.content,
-                )}
+              : renderHtml(answer?.answer?.text || answer?.answer?.content)}
 
             {renderImage(answer)}
           </div>
@@ -702,11 +822,20 @@ const StudentAnswersScreen = () => {
                 </div>
               </div>
 
-              <div className="rounded-full bg-white/15 px-4 py-2 text-sm font-semibold backdrop-blur-sm">
-                {answers.length}{" "}
-                {answers.length === 1
-                  ? "Answer"
-                  : "Answers"}
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="rounded-full bg-white/15 px-4 py-2 text-sm font-semibold backdrop-blur-sm">
+                  {answers.length} {answers.length === 1 ? "Answer" : "Answers"}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleCompleteEvaluation}
+                  disabled={isCompleting || answers.length === 0}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-500 px-5 py-3 text-sm font-bold text-white shadow-md transition hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <CheckCircle2 className="h-5 w-5" />
+                  {isCompleting ? "Completing..." : "COMPLETED"}
+                </button>
               </div>
             </div>
           </div>
@@ -727,30 +856,19 @@ const StudentAnswersScreen = () => {
             ) : (
               <div className="space-y-8">
                 {answers.map((answer, index) => {
-                  const statusInfo =
-                    getStatusStyle(answer?.status);
+                  const statusInfo = getStatusStyle(answer?.status);
 
-                  const StatusIcon =
-                    statusInfo.icon;
+                  const StatusIcon = statusInfo.icon;
 
-                  const questionText =
-                    getQuestionText(answer);
+                  const questionText = getQuestionText(answer);
 
-                  const questionNumber =
-                    getQuestionNumber(
-                      answer,
-                      index,
-                    );
+                  const questionNumber = getQuestionNumber(answer, index);
 
-                  const marks =
-                    getMarks(answer);
+                  const marks = getMarks(answer);
 
                   return (
                     <article
-                      key={
-                        answer?._id ||
-                        `${questionNumber}-${index}`
-                      }
+                      key={answer?._id || `${questionNumber}-${index}`}
                       className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm"
                     >
                       <div className="border-b border-gray-200 bg-gradient-to-r from-gray-50 to-blue-50 px-5 py-5 md:px-6">
@@ -763,16 +881,11 @@ const StudentAnswersScreen = () => {
                             <div>
                               <div className="flex flex-wrap items-center gap-2">
                                 <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-700">
-                                  {getModeLabel(
-                                    answer?.answerMode,
-                                  )}
+                                  {getModeLabel(answer?.answerMode)}
                                 </span>
 
                                 <span className="rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-semibold text-gray-600">
-                                  {marks}{" "}
-                                  {marks === 1
-                                    ? "Mark"
-                                    : "Marks"}
+                                  {marks} {marks === 1 ? "Mark" : "Marks"}
                                 </span>
 
                                 <span
@@ -784,29 +897,10 @@ const StudentAnswersScreen = () => {
                               </div>
 
                               <h2 className="mt-3 text-lg font-bold leading-7 text-gray-800">
-                                Question{" "}
-                                {questionNumber}
+                                Question {questionNumber}
                               </h2>
                             </div>
                           </div>
-
-                          {/* <button
-                            type="button"
-                            onClick={() =>
-                              handleEdit(answer)
-                            }
-                            disabled={
-                              !(
-                                answer?.attempt?._id ||
-                                answer?.attempt ||
-                                attemptId
-                              )
-                            }
-                            className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-md transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-                          >
-                            <Edit3 className="h-4 w-4" />
-                            Edit Answer
-                          </button> */}
                         </div>
                       </div>
 
@@ -832,18 +926,13 @@ const StudentAnswersScreen = () => {
                         <section className="mt-5 rounded-2xl border border-gray-200 bg-white">
                           <div className="flex flex-col gap-3 border-b border-gray-200 bg-gray-50 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
                             <div className="flex items-center gap-2">
-                              {answer?.answerMode ===
-                                "TABLE" ||
-                              answer?.answerMode ===
-                                "MATH_TABLE" ? (
+                              {answer?.answerMode === "TABLE" ||
+                              answer?.answerMode === "MATH_TABLE" ? (
                                 <Table2 className="h-5 w-5 text-blue-600" />
-                              ) : answer?.answerMode ===
-                                "CODE" ? (
+                              ) : answer?.answerMode === "CODE" ? (
                                 <Code2 className="h-5 w-5 text-blue-600" />
-                              ) : answer?.answerMode ===
-                                  "IMAGE" ||
-                                answer?.answerMode ===
-                                  "DRAWING" ? (
+                              ) : answer?.answerMode === "IMAGE" ||
+                                answer?.answerMode === "DRAWING" ? (
                                 <ImageIcon className="h-5 w-5 text-blue-600" />
                               ) : (
                                 <FileText className="h-5 w-5 text-blue-600" />
@@ -857,18 +946,14 @@ const StudentAnswersScreen = () => {
                             {answer?.lastSavedAt && (
                               <span className="text-xs text-gray-400">
                                 Last saved{" "}
-                                {new Date(
-                                  answer.lastSavedAt,
-                                ).toLocaleString()}
+                                {new Date(answer.lastSavedAt).toLocaleString()}
                               </span>
                             )}
                           </div>
 
                           <div className="p-5">
                             <div className="rounded-xl border border-gray-200 bg-gray-50/70 p-4 md:p-5">
-                              {renderAnswer(
-                                answer,
-                              )}
+                              {renderAnswer(answer)}
                             </div>
                           </div>
                         </section>
@@ -878,38 +963,104 @@ const StudentAnswersScreen = () => {
                             <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0" />
 
                             <div>
-                              <p className="font-semibold">
-                                Answer submitted
-                              </p>
+                              <p className="font-semibold">Answer submitted</p>
 
                               <p className="mt-1 text-green-600">
-                                {new Date(
-                                  answer.submittedAt,
-                                ).toLocaleString()}
+                                {new Date(answer.submittedAt).toLocaleString()}
                               </p>
                             </div>
                           </div>
                         )}
 
-                        {/* <div className="mt-5 flex justify-end">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              handleEdit(answer)
-                            }
-                            disabled={
-                              answer?.status ===
-                              "SUBMITTED"
-                            }
-                            className="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-5 py-3 text-sm font-semibold text-blue-700 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50"
-                          >
-                            <Edit3 className="h-4 w-4" />
-                            {answer?.status ===
-                            "SUBMITTED"
-                              ? "Submitted"
-                              : "Edit Answer"}
-                          </button>
-                        </div> */}
+                        {/* Teacher evaluation section */}
+                        <section className="mt-5 rounded-2xl border border-indigo-200 bg-indigo-50/50 p-5">
+                          <div className="mb-4 flex items-center gap-2">
+                            <ClipboardCheck className="h-5 w-5 text-indigo-600" />
+                            <h3 className="text-sm font-bold uppercase tracking-wide text-indigo-700">
+                              Teacher Evaluation
+                            </h3>
+                          </div>
+
+                          <div className="grid gap-5 md:grid-cols-2">
+                            <div>
+                              <label
+                                htmlFor={`marks-${answer._id}`}
+                                className="mb-2 block text-sm font-semibold text-gray-700"
+                              >
+                                Marks Awarded (Maximum: {marks})
+                              </label>
+
+                              <input
+                                id={`marks-${answer._id}`}
+                                type="number"
+                                min="0"
+                                max={marks}
+                                step="0.5"
+                                value={marksByAnswer[answer._id] ?? ""}
+                                onChange={(e) =>
+                                  handleMarksChange(answer._id, e.target.value)
+                                }
+                                className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
+                                placeholder={`Enter marks out of ${marks}`}
+                              />
+                            </div>
+
+                            <div>
+                              <label
+                                htmlFor={`feedback-${answer._id}`}
+                                className="mb-2 block text-sm font-semibold text-gray-700"
+                              >
+                                Feedback (Optional)
+                              </label>
+
+                              <textarea
+                                id={`feedback-${answer._id}`}
+                                rows={3}
+                                value={feedbackByAnswer[answer._id] ?? ""}
+                                onChange={(e) =>
+                                  handleFeedbackChange(
+                                    answer._id,
+                                    e.target.value,
+                                  )
+                                }
+                                className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
+                                placeholder="Provide feedback to the student..."
+                              />
+                            </div>
+                          </div>
+
+                          {saveError[answer._id] && (
+                            <p className="mt-3 text-sm font-medium text-red-600">
+                              {saveError[answer._id]}
+                            </p>
+                          )}
+
+                          {saveSuccess[answer._id] && (
+                            <p className="mt-3 flex items-center gap-2 text-sm font-medium text-green-700">
+                              <CheckCircle2 className="h-4 w-4" />
+                              Evaluation saved successfully.
+                            </p>
+                          )}
+
+                          
+
+
+{!isAnswerEvaluated(answer) && (
+  <button
+    type="button"
+    disabled={savingByAnswer[answer._id] === true}
+    onClick={() =>
+      handleSaveEvaluation(answer, Number(marks) || 0)
+    }
+    className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white shadow-md transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
+  >
+    <Save className="h-4 w-4" />
+    {savingByAnswer[answer._id] ? "Saving..." : "EVALUATE"}
+  </button>
+)}
+
+
+                        </section>
                       </div>
                     </article>
                   );
@@ -917,15 +1068,59 @@ const StudentAnswersScreen = () => {
               </div>
             )}
 
-            <div className="mt-8 flex justify-start">
-              <button
-                type="button"
-                onClick={() => navigate(-1)}
-                className="inline-flex items-center gap-2 rounded-xl border border-gray-300 bg-white px-6 py-3 font-semibold text-gray-700 shadow-sm transition hover:bg-gray-50"
-              >
-                <ArrowLeft className="h-5 w-5" />
-                Back
-              </button>
+            <div className="mt-8 space-y-4">
+              
+{completeError && (
+  <div
+    role="alert"
+    aria-live="assertive"
+    className="mb-4 rounded-xl border-2 border-red-300 bg-red-50 px-5 py-4 text-sm font-semibold text-red-800 shadow-sm"
+  >
+    <div className="flex items-start gap-3">
+      <XCircle className="h-5 w-5 shrink-0 text-red-600" />
+
+      <div>
+        <p className="font-bold">Unable to complete evaluation</p>
+        <p className="mt-1">{completeError}</p>
+      </div>
+    </div>
+  </div>
+)}
+
+{completeSuccess && (
+  <div
+    role="status"
+    aria-live="polite"
+    className="mb-4 rounded-xl border border-green-300 bg-green-50 px-5 py-4 text-sm font-semibold text-green-800"
+  >
+    <div className="flex items-center gap-2">
+      <CheckCircle2 className="h-5 w-5 shrink-0" />
+      <span>{completeSuccess}</span>
+    </div>
+  </div>
+)}
+
+
+              <div className="flex flex-col-reverse justify-between gap-4 sm:flex-row">
+                <button
+                  type="button"
+                  onClick={() => navigate(-1)}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-300 bg-white px-6 py-3 font-semibold text-gray-700 shadow-sm transition hover:bg-gray-50"
+                >
+                  <ArrowLeft className="h-5 w-5" />
+                  Back
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleCompleteEvaluation}
+                  disabled={isCompleting || answers.length === 0}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-7 py-3 font-bold text-white shadow-md transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <CheckCircle2 className="h-5 w-5" />
+                  {isCompleting ? "Completing..." : "COMPLETED"}
+                </button>
+              </div>
             </div>
           </div>
         </div>

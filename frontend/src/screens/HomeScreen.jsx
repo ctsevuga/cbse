@@ -1192,13 +1192,13 @@ const HomeScreen = () => {
               </button>
               <button
                 type="button"
-                onClick={() => navigate("/result-details/pending")}
+                onClick={() => navigate("/student-attempts-review")}
                 className="rounded-2xl bg-white p-6 text-left shadow-lg transition-all hover:-translate-y-1 hover:shadow-xl"
               >
                 <h3 className="text-xl font-bold text-red-600">
-                Evaluation Pending Queue
+                Evaluation Review
                 </h3>
-                <p className="mt-2 text-gray-600"> Evaluation Pending Queue</p>
+                <p className="mt-2 text-gray-600"> Evaluation Review</p>
               </button>
             </div>
           </div>

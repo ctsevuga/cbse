@@ -237,6 +237,8 @@ import StudentAttemptDetailsScreen from "./screens/StudentAttempt/StudentAttempt
 import StudentAttemptsByStudentScreen from "./screens/StudentAttempt/StudentAttemptsByStudentScreen";
 import StudentAttemptsListScreen from "./screens/StudentAttempt/StudentAttemptsListScreen";
 import StudentAttemptsScreen from "./screens/StudentAttempt/StudentAttemptsScreen";
+import StudentAttemptsReviewScreen from "./screens/StudentAttempt/StudentAttemptsReviewScreen";
+
 
 // ======================================================
 // Student Answer Screens
@@ -248,6 +250,8 @@ import StudentAnswersScreen from "./screens/studentAnswer/StudentAnswersScreen";
 import StudentAssessmentReviewScreen from "./screens/studentAnswer/StudentAssessmentReviewScreen";
 import StudentAssessmentScreen from "./screens/studentAnswer/StudentAssessmentScreen";
 import StudentAttemptReviewScreen from "./screens/studentAnswer/StudentAttemptReviewScreen";
+import AttemptEvaluationReviewScreen from "./screens/studentAnswer/AttemptEvaluationReviewScreen";
+
 
 // ======================================================
 //  Answer Evaluation Screens
@@ -1409,6 +1413,23 @@ const RouterWrapper = () => {
             </AuthenticatedRoute>
           }
         />
+        <Route
+          path="/student-attempts/assessment/:assessmentId"
+          element={
+            <AuthenticatedRoute user={userInfo}>
+              <StudentAttemptReviewScreen />
+            </AuthenticatedRoute>
+          }
+        />
+
+         <Route
+          path="/student-answers-reviews/:attemptId"
+          element={
+            <AuthenticatedRoute user={userInfo}>
+              <AttemptEvaluationReviewScreen />
+            </AuthenticatedRoute>
+          }
+        />
 
         {/*
           Attempts by Student
@@ -1470,7 +1491,7 @@ const RouterWrapper = () => {
           Backend validates student ownership and school scope.
         */}
         <Route
-          path="/student-answers"
+          path="/answer-evaluations/create/:attemptId"
           element={
             <AuthenticatedRoute user={userInfo}>
               <StudentAnswersScreen />
@@ -1502,13 +1523,14 @@ const RouterWrapper = () => {
           Backend validates attempt ownership and school scope.
         */}
         <Route
-          path="/student-answers/attempt/:attemptId"
+          path="student-attempts-review"
           element={
             <AuthenticatedRoute user={userInfo}>
-              <StudentAttemptReviewScreen />
+              <StudentAttemptsReviewScreen />
             </AuthenticatedRoute>
           }
         />
+        
 
         {/*
           Assessment Review
@@ -1582,14 +1604,7 @@ const RouterWrapper = () => {
   Backend: POST /api/answer-evaluations
   Access: TEACHER only
 */
-<Route
-  path="/answer-evaluations/create"
-  element={
-    <TeacherRoute user={userInfo}>
-      <createAnswerEvaluation />
-    </TeacherRoute>
-  }
-/>
+
 
 {/*
   My Evaluations
@@ -1619,14 +1634,7 @@ const RouterWrapper = () => {
   }
 />
 
-<Route
-  path="/teacher/answer-evaluation/:studentAnswerId"
-  element={
-    <TeacherRoute user={userInfo}>
-      <createAnswerEvaluation />
-    </TeacherRoute>
-  }
-/>
+
 
 {/*
   Create Evaluation
@@ -1637,7 +1645,7 @@ const RouterWrapper = () => {
   path="/answer-evaluations/create/:studentAnswerId"
   element={
     <TeacherRoute user={userInfo}>
-      <StudentAnswerEvaluationScreen />
+      <createAnswerEvaluation />
     </TeacherRoute>
   }
 />

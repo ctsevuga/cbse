@@ -209,6 +209,10 @@ const validateAssessmentCanDeleteSection = (
   }
 };
 
+
+
+
+
 const createAssessmentSection =
   asyncHandler(async (req, res) => {
     const {
@@ -258,6 +262,44 @@ const createAssessmentSection =
       numberOfQuestions,
       totalMarks,
     );
+
+    
+const existingSectionsTotal =
+  await AssessmentSection.aggregate([
+    {
+      $match: {
+        assessment: assessmentData._id,
+      },
+    },
+    {
+      $group: {
+        _id: null,
+        totalMarks: {
+          $sum: "$totalMarks",
+        },
+      },
+    },
+  ]);
+
+const currentTotal =
+  existingSectionsTotal[0]?.totalMarks ?? 0;
+
+const newSectionMarks = Number(totalMarks);
+
+if (
+  currentTotal + newSectionMarks >
+  Number(assessmentData.totalMarks)
+) {
+  res.status(400);
+
+  throw new Error(
+    `Total section marks cannot exceed assessment maximum marks (${assessmentData.totalMarks}). ` +
+    `Existing section marks: ${currentTotal}, ` +
+    `new section marks: ${newSectionMarks}, ` +
+    `resulting total: ${currentTotal + newSectionMarks}.`
+  );
+}
+
 
     const normalizedCode =
       sectionCode
@@ -415,31 +457,49 @@ const getAssessmentSectionById =
     res.json(result);
   });
 
+
 const getAssessmentSectionsByAssessment =
   asyncHandler(async (req, res) => {
-    const { assessmentId } =
-      req.params;
-
+    const { assessmentId } = req.params;
     const schoolId = getSchoolId(req);
 
-    const assessment =
-      await validateAssessment(
-        assessmentId,
-        schoolId,
-      );
+    const assessment = await validateAssessment(
+      assessmentId,
+      schoolId
+    );
 
-    const sections =
-      await populateAssessmentSection(
-        AssessmentSection.find({
-          assessment:
-            assessment._id,
-        }).sort({
-          order: 1,
-        }),
-      );
+    const sections = await populateAssessmentSection(
+      AssessmentSection.find({
+        assessment: assessment._id,
+      }).sort({ order: 1 })
+    );
 
-    res.json(sections);
+    const existingSectionsTotal =
+      await AssessmentSection.aggregate([
+        {
+          $match: {
+            assessment: assessment._id,
+          },
+        },
+        {
+          $group: {
+            _id: null,
+            totalMarks: {
+              $sum: "$totalMarks",
+            },
+          },
+        },
+      ]);
+
+    const totalMarks =
+      existingSectionsTotal[0]?.totalMarks ?? 0;
+
+    res.json({
+      sections,
+      totalMarks,
+    });
   });
+
 
 const getAssessmentSectionsByQuestionType =
   asyncHandler(async (req, res) => {

@@ -29,17 +29,13 @@ const answerEvaluationSchema = new mongoose.Schema(
       min: 0,
     },
 
+    
     marksAwarded: {
       type: Number,
       required: true,
       min: 0,
-      validate: {
-        validator: function (value) {
-          return value <= this.maximumMarks;
-        },
-        message: "Marks awarded cannot exceed maximum marks",
-      },
     },
+
 
     feedback: {
       type: String,
@@ -54,6 +50,7 @@ const answerEvaluationSchema = new mongoose.Schema(
         "EVALUATED",
         "REVIEW_REQUIRED",
         "REVISED",
+        "PUBLISHED",
       ],
       default: "PENDING",
       index: true,

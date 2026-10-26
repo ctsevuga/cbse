@@ -15,6 +15,7 @@ import {
 
 import {
   useCreateAssessmentSectionMutation,
+  useGetAssessmentSectionsByAssessmentQuery,
 } from "../../slices/assessmentSectionApiSlice";
 
 import {
@@ -200,6 +201,56 @@ const CreateAssessmentSectionScreen = () => {
     (assessment) =>
       getId(assessment) === formData.assessment,
   );
+
+  const {
+  data: assessmentSectionsData,
+  isLoading: sectionsForAssessmentLoading,
+  isFetching: sectionsForAssessmentFetching,
+  refetch: refetchAssessmentSections,
+} = useGetAssessmentSectionsByAssessmentQuery(
+  formData.assessment,
+  {
+    skip: !formData.assessment,
+  },
+);
+
+const assessmentSections = Array.isArray(
+  assessmentSectionsData,
+)
+  ? assessmentSectionsData
+  : assessmentSectionsData?.sections || [];
+
+const allocatedMarks =
+  assessmentSectionsData?.totalMarks ??
+  assessmentSections.reduce(
+    (total, section) =>
+      total + Number(section.totalMarks || 0),
+    0,
+  );
+
+const assessmentMaximum = Number(
+  selectedAssessment?.totalMarks || 0,
+);
+
+const remainingMarks =
+  assessmentMaximum - allocatedMarks;
+
+const newSectionMarks = Number(
+  formData.totalMarks || 0,
+);
+
+const projectedTotal =
+  allocatedMarks + newSectionMarks;
+
+const projectedRemaining =
+  assessmentMaximum - projectedTotal;
+
+const exceedsAssessmentMaximum =
+  allocatedMarks > assessmentMaximum;
+
+const newSectionExceedsMaximum =
+  allocatedMarks + Number(formData.totalMarks || 0) >
+  assessmentMaximum;
 
   useEffect(() => {
     if (

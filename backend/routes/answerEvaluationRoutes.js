@@ -2,7 +2,12 @@ import express from "express";
 
 import {
   createAnswerEvaluation,
+  saveAnswerEvaluation, // NEW
+  completeAttemptEvaluation,
+  reviseAttemptEvaluation,
   getAnswerEvaluations,
+  getAttemptsForEvaluation,
+  getAttemptsForReview,
   getAnswerEvaluationById,
   getEvaluationByStudentAnswer,
   getEvaluationsByAttempt,
@@ -20,6 +25,8 @@ import {
   hm,
   teacher,
 } from "../middleware/authMiddleware.js";
+
+import resolveSchool from "../middleware/resolveSchool.js";
 
 const router = express.Router();
 
@@ -65,6 +72,57 @@ router.post(
 
 /**
  * ======================================================
+ * SAVE ANSWER EVALUATION
+ * ======================================================
+ *
+ * Teacher submits marks and feedback for a student's
+ * submitted answer.
+ *
+ * - Creates an evaluation if one does not exist.
+ * - Updates the existing evaluation if already saved.
+ * - Sets evaluationStatus to "EVALUATED".
+ * - Teacher identity comes from req.user.
+ *
+ * TEACHER only.
+ */
+router.post(
+  "/save",
+  protect,
+  teacher,
+  saveAnswerEvaluation,
+);
+
+/**
+ * ======================================================
+ * COMPLETE ATTEMPT EVALUATION
+ * ======================================================
+ *
+ * Checks that every StudentAnswer has an evaluation
+ * with evaluationStatus = "EVALUATED".
+ *
+ * If all answers are evaluated:
+ *   - Calculates obtained marks.
+ *   - Updates StudentAttempt.obtainedMarks.
+ *   - Updates StudentAttempt.status to "EVALUATED".
+ *
+ * TEACHER only.
+ */
+router.post(
+  "/attempt/:attemptId/complete",
+  protect,
+  teacher,
+  completeAttemptEvaluation,
+);
+
+router.put(
+  "/attempts/:attemptId/revise",
+  protect,
+  reviseAttemptEvaluation
+);
+/**
+ * 
+ * 
+ * ======================================================
  * GET ALL ANSWER EVALUATIONS
  * ======================================================
  *
@@ -100,6 +158,59 @@ router.get(
   getMyAnswerEvaluations,
 );
 
+
+/**
+ * ======================================================
+ * STUDENT ATTEMPTS FOR EVALUATION
+ * ======================================================
+ *
+ * Fetches student attempts filtered by:
+ *
+ * - assessment ID
+ * - student ID
+ * - status: SUBMITTED, EVALUATING, IN_PROGRESS
+ *
+ * TEACHER only.
+ *
+ * Query parameters:
+ *   assessment: Assessment ID
+ *   student: Student ID
+ */
+router.get(
+  "/attempts",
+  protect,
+  teacher,
+  getAttemptsForEvaluation,
+);
+
+
+/**
+ * ======================================================
+ * STUDENT ATTEMPTS FOR REVIEW
+ * ======================================================
+ *
+ * Fetches previously evaluated student attempts filtered by:
+ *
+ * - assessmentId
+ * - studentId
+ * - status: EVALUATED
+ *
+ * Used by teachers to review and correct marks or
+ * feedback before publishing results.
+ *
+ * TEACHER only.
+ *
+ * Query parameters:
+ *   assessmentId: Assessment ID
+ *   studentId: Student ID
+ */
+router.get(
+  "/attempts/review",
+  protect,
+  teacher,
+  resolveSchool,
+  getAttemptsForReview,
+);
 /**
  * ======================================================
  * PENDING ANSWERS

@@ -42,22 +42,23 @@ const resolveSchool = async (req, res, next) => {
         .filter(Boolean);
 
       const ignoredSegments = new Set([
-        "api",
-        "users",
-        "auth",
-        "logout",
-        "profile",
-        "schools",
-        "students",
-        "teachers",
-        "parents",
-        "assessments",
-        "results",
-        "questions",
-        "change-password",
-        "forgot-password",
-        "forgot-password-users",
-      ]);
+  "api",
+  "users",
+  "auth",
+  "logout",
+  "profile",
+  "schools",
+  "students",
+  "teachers",
+  "parents",
+  "assessments",
+  "results",
+  "questions",
+  "answer-evaluation",
+  "change-password",
+  "forgot-password",
+  "forgot-password-users",
+]);
 
       const apiIndex = segments.findIndex(
         (segment) => segment.toLowerCase() === "api",
@@ -129,6 +130,26 @@ const resolveSchool = async (req, res, next) => {
         console.log("Resolved by DOMAIN:", school.name);
       }
     }
+
+    // Resolve school from the authenticated user when
+// no slug or domain is available (e.g. localhost).
+if (!school && req.user) {
+  const userSchoolId =
+    req.user.school?._id ??
+    req.user.school ??
+    req.user.schoolId;
+
+  if (userSchoolId) {
+    school = await School.findOne({
+      _id: userSchoolId,
+      isActive: true,
+    });
+
+    if (school) {
+      console.log("Resolved by USER:", school.name);
+    }
+  }
+}
 
     // ============================================
     // 7. NO AUTOMATIC LOCALHOST FALLBACK

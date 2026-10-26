@@ -362,14 +362,7 @@ const validateAssessmentWindow = (
 
 const getAssessmentQuestions = async (assessmentId) => {
 
-  console.log("Assessment ID:", assessmentId);
-
-console.log("Question IDs:", questionIds);
-
-console.log(
-  "AssessmentQuestion sample:",
-  await AssessmentQuestion.findOne().lean()
-);
+ 
   return AssessmentQuestion.find({
     assessment: assessmentId,
   })
@@ -1791,15 +1784,7 @@ export const submitStudentAttempt = asyncHandler(
   async (req, res) => {
     requireStudentUser(req);
 
-    console.log("\n========== SUBMIT ATTEMPT START ==========");
-    console.log("Attempt ID:", req.params.id);
-    console.log("Request body:", {
-      timeSpent: req.body.timeSpent,
-      attemptedQuestions: req.body.attemptedQuestions,
-      answerCount: Array.isArray(req.body.answers)
-        ? req.body.answers.length
-        : "NOT AN ARRAY",
-    });
+   
 
     validateObjectId(req.params.id, "attempt ID");
 
