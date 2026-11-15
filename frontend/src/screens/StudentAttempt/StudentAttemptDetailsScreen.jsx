@@ -12,6 +12,8 @@ import {
   Timer,
   UserRound,
   XCircle,
+  MessageSquare,
+  ClipboardCheck,
 } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
@@ -213,20 +215,47 @@ const StudentAttemptDetailsScreen = () => {
     return question._id || "-";
   };
 
-  const getQuestionText = (question) => {
-    if (!question) return "Question";
+  
+const getQuestionText = (question) => {
+  if (!question) return "Question";
 
-    if (typeof question === "string") {
-      return question;
+  if (
+    typeof question === "string" ||
+    typeof question === "number"
+  ) {
+    return question;
+  }
+
+  if (typeof question !== "object") {
+    return "Question";
+  }
+
+  const text =
+    question.questionText ??
+    question.text ??
+    question.question;
+
+  if (
+    typeof text === "string" ||
+    typeof text === "number"
+  ) {
+    return text;
+  }
+
+  // Handle unexpectedly nested question objects.
+  if (text && typeof text === "object") {
+    if (typeof text.questionText === "string") {
+      return text.questionText;
     }
 
-    return (
-      question.questionText ||
-      question.text ||
-      question.question ||
-      `Question ${question._id || ""}`
-    );
-  };
+    if (typeof text.text === "string") {
+      return text.text;
+    }
+  }
+
+  return `Question ${question._id || ""}`;
+};
+
 
   const getQuestionType = (question) => {
     if (!question || typeof question === "string") {
@@ -235,6 +264,155 @@ const StudentAttemptDetailsScreen = () => {
 
     return question.questionType || "";
   };
+
+
+const getTeacherName = (teacher) => {
+  if (!teacher) return "Teacher";
+
+  if (typeof teacher === "string") {
+    return teacher;
+  }
+
+  return (
+    teacher.name ||
+    teacher.user?.name ||
+    teacher.firstName ||
+    "Teacher"
+  );
+};
+
+const getEvaluationStatusConfig = (status) => {
+  const configs = {
+    PENDING: {
+      label: "Pending",
+      className: "bg-amber-100 text-amber-700",
+    },
+    EVALUATED: {
+      label: "Evaluated",
+      className: "bg-emerald-100 text-emerald-700",
+    },
+    REVIEW_REQUIRED: {
+      label: "Review Required",
+      className: "bg-orange-100 text-orange-700",
+    },
+    REVISED: {
+      label: "Revised",
+      className: "bg-blue-100 text-blue-700",
+    },
+    PUBLISHED: {
+      label: "Published",
+      className: "bg-purple-100 text-purple-700",
+    },
+  };
+
+  return (
+    configs[status] || {
+      label: status || "Not Evaluated",
+      className: "bg-gray-100 text-gray-600",
+    }
+  );
+};
+
+/*
+ * Safely render answers stored as Mixed objects.
+ * Supports strings, numbers, arrays and nested objects.
+ */
+const renderAnswerValue = (value, depth = 0) => {
+  if (value === null || value === undefined || value === "") {
+    return (
+      <span className="text-sm italic text-gray-400">
+        No answer provided
+      </span>
+    );
+  }
+
+  if (
+    typeof value === "string" ||
+    typeof value === "number"
+  ) {
+    return (
+      <span className="whitespace-pre-wrap break-words text-sm text-gray-800">
+        {String(value)}
+      </span>
+    );
+  }
+
+  if (typeof value === "boolean") {
+    return (
+      <span className="text-sm text-gray-800">
+        {value ? "Yes" : "No"}
+      </span>
+    );
+  }
+
+  if (depth >= 5) {
+    return (
+      <span className="text-xs text-gray-500">
+        Structured answer
+      </span>
+    );
+  }
+
+  if (Array.isArray(value)) {
+    if (value.length === 0) {
+      return (
+        <span className="text-sm italic text-gray-400">
+          Empty answer
+        </span>
+      );
+    }
+
+    return (
+      <div className="space-y-2">
+        {value.map((item, index) => (
+          <div
+            key={index}
+            className="rounded-lg bg-white p-2"
+          >
+            {renderAnswerValue(item, depth + 1)}
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (typeof value === "object") {
+    const entries = Object.entries(value).filter(
+      ([key, item]) =>
+        !["_id", "__v", "createdAt", "updatedAt"].includes(key) &&
+        item !== null &&
+        item !== undefined
+    );
+
+    if (entries.length === 0) {
+      return (
+        <span className="text-sm italic text-gray-400">
+          No answer content
+        </span>
+      );
+    }
+
+    return (
+      <div className="space-y-2">
+        {entries.map(([key, item]) => (
+          <div
+            key={key}
+            className="rounded-lg bg-white p-2"
+          >
+            <p className="mb-1 text-xs font-semibold capitalize text-gray-500">
+              {key.replace(/([A-Z])/g, " $1")}
+            </p>
+
+            {renderAnswerValue(item, depth + 1)}
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  return null;
+};
+
 
   const handleStatusUpdate = async (status) => {
     if (!attempt?._id || isUpdatingStatus) {
@@ -261,9 +439,26 @@ const StudentAttemptDetailsScreen = () => {
 
   const percentage = getPercentage();
 
+const evaluatedAnswers = Array.isArray(
+  attempt?.evaluatedAnswers
+)
+  ? attempt.evaluatedAnswers
+  : [];
+
+const questionOrderMap = new Map(
+  (attempt?.questionOrder || []).map((item, index) => {
+    const question = item.question || item;
+
+    return [
+      getQuestionId(question).toString(),
+      item.order || index + 1,
+    ];
+  })
+);
+
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500 px-4 py-6 sm:px-6 lg:px-8">
+      <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500 px-3 py-3 sm:px-4 sm:py-4">
         <div className="mx-auto flex min-h-[80vh] max-w-7xl items-center justify-center">
           <div className="flex flex-col items-center gap-4 text-white">
             <Loader2
@@ -323,7 +518,7 @@ const StudentAttemptDetailsScreen = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500 px-4 py-6 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-7xl">
-        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <button
             type="button"
             onClick={() => navigate(-1)}
@@ -350,19 +545,19 @@ const StudentAttemptDetailsScreen = () => {
         </div>
 
         <div className="overflow-hidden rounded-3xl border border-white/20 bg-white/10 shadow-2xl backdrop-blur-xl">
-          <div className="border-b border-white/10 px-5 py-7 sm:px-8">
-            <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+          <div className="border-b border-white/10 px-4 py-4 sm:px-5">
+  <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
               <div className="flex items-center gap-4">
-                <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white/15 text-white shadow-lg">
-                  <FileText size={30} />
-                </div>
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white/15 text-white shadow-lg">
+  <FileText size={23} />
+</div>
 
                 <div>
                   <p className="text-sm font-medium text-white/60">
                     Student Assessment Attempt
                   </p>
 
-                  <h1 className="mt-1 text-2xl font-bold text-white sm:text-3xl">
+                  <h1 className="mt-0.5 text-xl font-bold text-white sm:text-2xl">
                     {getAssessmentName(
                       attempt.assessment
                     )}
@@ -380,8 +575,8 @@ const StudentAttemptDetailsScreen = () => {
                 </div>
               </div>
 
-              <div className="flex items-center gap-3 rounded-2xl border border-white/20 bg-white/10 px-5 py-4 text-white">
-                <Target size={23} />
+              <div className="flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-white">
+  <Target size={19} />
 
                 <div>
                   <p className="text-xs text-white/60">
@@ -396,92 +591,73 @@ const StudentAttemptDetailsScreen = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-5 border-b border-white/10 bg-white/5 p-5 sm:p-8 md:grid-cols-2 xl:grid-cols-4">
-            <div className="rounded-2xl border border-white/20 bg-white/10 p-5 text-white backdrop-blur-md">
-              <div className="flex items-center gap-3">
-                <div className="rounded-xl bg-cyan-400/20 p-3 text-cyan-100">
-                  <UserRound size={22} />
-                </div>
+          {/* COMPACT ATTEMPT SUMMARY - SINGLE ROW */}
+<div className="grid grid-cols-2 gap-2 border-b border-white/10 bg-white/5 p-3 sm:grid-cols-4">
 
-                <div>
-                  <p className="text-xs text-white/55">
-                    Student
-                  </p>
+  {/* STUDENT */}
+  <div className="flex min-w-0 items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-white">
+    <div className="shrink-0 rounded-lg bg-cyan-400/20 p-2 text-cyan-100">
+      <UserRound size={18} />
+    </div>
 
-                  <p className="mt-1 font-bold">
-                    {getStudentName(
-                      attempt.student
-                    )}
-                  </p>
-                </div>
-              </div>
-            </div>
+    <div className="min-w-0">
+      <p className="text-[11px] text-white/60">Student</p>
+      <p className="truncate text-sm font-bold">
+        {getStudentName(attempt.student)}
+      </p>
+    </div>
+  </div>
 
-            <div className="rounded-2xl border border-white/20 bg-white/10 p-5 text-white backdrop-blur-md">
-              <div className="flex items-center gap-3">
-                <div className="rounded-xl bg-purple-400/20 p-3 text-purple-100">
-                  <FileText size={22} />
-                </div>
+  {/* QUESTIONS */}
+  <div className="flex min-w-0 items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-white">
+    <div className="shrink-0 rounded-lg bg-purple-400/20 p-2 text-purple-100">
+      <FileText size={18} />
+    </div>
 
-                <div>
-                  <p className="text-xs text-white/55">
-                    Questions
-                  </p>
+    <div>
+      <p className="text-[11px] text-white/60">Questions</p>
+      <p className="text-sm font-bold">
+        {attempt.attemptedQuestions || 0}/{attempt.totalQuestions || 0}
+      </p>
+    </div>
+  </div>
 
-                  <p className="mt-1 text-lg font-bold">
-                    {attempt.attemptedQuestions || 0}/
-                    {attempt.totalQuestions || 0}
-                  </p>
-                </div>
-              </div>
-            </div>
+  {/* MARKS */}
+  <div className="flex min-w-0 items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-white">
+    <div className="shrink-0 rounded-lg bg-emerald-400/20 p-2 text-emerald-100">
+      <Award size={18} />
+    </div>
 
-            <div className="rounded-2xl border border-white/20 bg-white/10 p-5 text-white backdrop-blur-md">
-              <div className="flex items-center gap-3">
-                <div className="rounded-xl bg-emerald-400/20 p-3 text-emerald-100">
-                  <Award size={22} />
-                </div>
+    <div>
+      <p className="text-[11px] text-white/60">Marks</p>
+      <p className="text-sm font-bold">
+        {attempt.obtainedMarks || 0}/{attempt.totalMarks || 0}
+      </p>
+    </div>
+  </div>
 
-                <div>
-                  <p className="text-xs text-white/55">
-                    Marks
-                  </p>
+  {/* TIME SPENT */}
+  <div className="flex min-w-0 items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-white">
+    <div className="shrink-0 rounded-lg bg-amber-400/20 p-2 text-amber-100">
+      <Timer size={18} />
+    </div>
 
-                  <p className="mt-1 text-lg font-bold">
-                    {attempt.obtainedMarks || 0}/
-                    {attempt.totalMarks || 0}
-                  </p>
-                </div>
-              </div>
-            </div>
+    <div>
+      <p className="text-[11px] text-white/60">Time Spent</p>
+      <p className="text-sm font-bold">
+        {formatTimeSpent(attempt.timeSpent)}
+      </p>
+    </div>
+  </div>
 
-            <div className="rounded-2xl border border-white/20 bg-white/10 p-5 text-white backdrop-blur-md">
-              <div className="flex items-center gap-3">
-                <div className="rounded-xl bg-amber-400/20 p-3 text-amber-100">
-                  <Timer size={22} />
-                </div>
+</div>
 
-                <div>
-                  <p className="text-xs text-white/55">
-                    Time Spent
-                  </p>
-
-                  <p className="mt-1 text-lg font-bold">
-                    {formatTimeSpent(
-                      attempt.timeSpent
-                    )}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 gap-6 p-5 sm:p-8 xl:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 p-3 sm:p-4 xl:grid-cols-3">
             <div className="xl:col-span-2">
-              <div className="rounded-2xl border border-white/20 bg-white p-5 shadow-xl sm:p-6">
+              <div className="rounded-xl border border-white/20 bg-white p-4 shadow-md">
                 <div className="mb-6 flex items-center justify-between">
                   <div>
-                    <h2 className="text-xl font-bold text-gray-800">
+                    <h2 className="text-lg font-bold text-gray-800">
                       Attempt Information
                     </h2>
 
@@ -495,8 +671,8 @@ const StudentAttemptDetailsScreen = () => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <div className="rounded-xl bg-gray-50 p-4">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div className="rounded-lg bg-gray-50 p-3">
                     <div className="flex items-center gap-2 text-gray-500">
                       <CalendarDays size={17} />
                       <span className="text-sm">
@@ -504,7 +680,7 @@ const StudentAttemptDetailsScreen = () => {
                       </span>
                     </div>
 
-                    <p className="mt-2 font-semibold text-gray-800">
+                    <p className="mt-1 text-sm font-semibold text-gray-800">
                       {formatDateTime(
                         attempt.startedAt
                       )}
@@ -586,9 +762,9 @@ const StudentAttemptDetailsScreen = () => {
                 </div>
               </div>
 
-              <div className="mt-6 rounded-2xl border border-white/20 bg-white p-5 shadow-xl sm:p-6">
+              <div className="mt-4 rounded-xl border border-white/20 bg-white p-4 shadow-md">
                 <div className="mb-6">
-                  <h2 className="text-xl font-bold text-gray-800">
+                  <h2 className="text-lg font-bold text-gray-800">
                     Question Order
                   </h2>
 
@@ -599,7 +775,7 @@ const StudentAttemptDetailsScreen = () => {
                 </div>
 
                 {attempt.questionOrder?.length ? (
-                  <div className="space-y-3">
+                  <div className="space-y-2">
                     {attempt.questionOrder.map(
                       (item, index) => {
                         const question =
@@ -610,11 +786,11 @@ const StudentAttemptDetailsScreen = () => {
                             key={`${getQuestionId(
                               question
                             )}-${item.order}-${index}`}
-                            className="rounded-xl border border-gray-100 bg-gray-50 p-4 transition hover:border-indigo-200 hover:bg-indigo-50/50"
+                            className="rounded-lg border border-gray-100 bg-gray-50 p-3 transition hover:border-indigo-200 hover:bg-indigo-50/50"
                           >
                             <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
                               <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 font-bold text-white shadow-md">
-                                {item.order}
+                                {item.order || index + 1}
                               </div>
 
                               <div className="min-w-0 flex-1">
@@ -686,6 +862,336 @@ const StudentAttemptDetailsScreen = () => {
                 )}
               </div>
             </div>
+
+{/* =====================================================
+    STUDENT ANSWERS & TEACHER EVALUATION
+===================================================== */}
+
+{attempt.status === "EVALUATED" && (
+  <div className="mt-6 rounded-2xl border border-white/20 bg-white p-5 shadow-xl sm:p-6">
+
+    {/* SECTION HEADER */}
+    <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+
+      <div>
+        <div className="flex items-center gap-2">
+          <ClipboardCheck
+            size={23}
+            className="text-emerald-600"
+          />
+
+          <h2 className="text-xl font-bold text-gray-800">
+            Student Answers & Teacher Evaluation
+          </h2>
+        </div>
+
+        <p className="mt-1 text-sm text-gray-500">
+          Submitted answers, awarded marks and teacher feedback
+        </p>
+      </div>
+
+      <span className="w-fit rounded-full bg-emerald-100 px-3 py-1.5 text-xs font-bold text-emerald-700">
+        {evaluatedAnswers.length} Answers
+      </span>
+
+    </div>
+
+    {/* NO ANSWERS */}
+    {evaluatedAnswers.length === 0 ? (
+      <div className="rounded-xl bg-gray-50 px-5 py-10 text-center">
+
+        <FileText
+          size={32}
+          className="mx-auto text-gray-400"
+        />
+
+        <p className="mt-3 text-sm text-gray-500">
+          No student answers were found for this attempt.
+        </p>
+
+      </div>
+    ) : (
+
+      <div className="space-y-4">
+
+        {evaluatedAnswers.map((studentAnswer, index) => {
+
+          const question = studentAnswer.question;
+
+          const questionId = getQuestionId(question);
+
+          const questionNumber =
+            questionOrderMap.get(questionId.toString()) ||
+            index + 1;
+
+          const evaluation =
+            studentAnswer.evaluation;
+
+          const evaluationStatus =
+            getEvaluationStatusConfig(
+              evaluation?.evaluationStatus
+            );
+
+          return (
+            <div
+              key={studentAnswer._id}
+              className="overflow-hidden rounded-xl border border-gray-200"
+            >
+
+              {/* QUESTION HEADER */}
+              <div className="border-b border-gray-100 bg-indigo-50 px-4 py-3">
+
+                <div className="flex flex-wrap items-center justify-between gap-2">
+
+                  <div className="flex items-center gap-2">
+
+                    <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-600 text-sm font-bold text-white">
+                      {questionNumber}
+                    </span>
+
+                    <div>
+                      <p className="text-xs font-semibold text-indigo-600">
+                        Question {questionNumber}
+                      </p>
+
+                      <p className="text-xs text-gray-500">
+                        {getQuestionType(question)}
+                        {question?.marks !== undefined &&
+                          ` • ${question.marks} marks`}
+                      </p>
+                    </div>
+
+                  </div>
+
+                  {evaluation && (
+                    <span
+                      className={`rounded-full px-3 py-1 text-xs font-bold ${evaluationStatus.className}`}
+                    >
+                      {evaluationStatus.label}
+                    </span>
+                  )}
+
+                </div>
+
+                <p className="mt-3 whitespace-pre-wrap text-sm font-semibold leading-6 text-gray-800">
+                  {getQuestionText(question)}
+                </p>
+
+              </div>
+
+              {/* STUDENT ANSWER */}
+              <div className="space-y-4 p-4">
+
+                <div>
+
+                  <div className="mb-2 flex items-center gap-2">
+                    <UserRound
+                      size={16}
+                      className="text-indigo-600"
+                    />
+
+                    <h3 className="text-sm font-bold text-gray-700">
+                      Student Answer
+                    </h3>
+
+                    <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold text-gray-500">
+                      {studentAnswer.answerMode}
+                    </span>
+                  </div>
+
+                  <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
+
+                    {studentAnswer.selectedOption && (
+                      <div className="mb-3 rounded-lg border border-indigo-100 bg-indigo-50 p-3">
+
+                        <p className="mb-1 text-xs font-semibold text-indigo-600">
+                          Selected Option
+                        </p>
+
+                        <p className="text-sm font-semibold text-indigo-800">
+                          {studentAnswer.selectedOption}
+                        </p>
+
+                      </div>
+                    )}
+
+                    {studentAnswer.answer !== null &&
+                    studentAnswer.answer !== undefined &&
+                    studentAnswer.answer !== "" ? (
+                      renderAnswerValue(studentAnswer.answer)
+                    ) : !studentAnswer.selectedOption ? (
+                      <p className="text-sm italic text-gray-400">
+                        No answer provided.
+                      </p>
+                    ) : null}
+
+                    {studentAnswer.attachments?.length > 0 && (
+                      <div className="mt-3 border-t border-gray-200 pt-3">
+
+                        <p className="mb-2 text-xs font-semibold text-gray-600">
+                          Attachments ({studentAnswer.attachments.length})
+                        </p>
+
+                        <div className="space-y-1">
+
+                          {studentAnswer.attachments.map(
+                            (attachment, attachmentIndex) => (
+                              <div
+                                key={attachment._id || attachmentIndex}
+                                className="flex items-center gap-2 text-xs text-gray-600"
+                              >
+                                <FileText size={13} />
+
+                                {typeof attachment === "string"
+                                  ? attachment
+                                  : attachment.fileName ||
+                                    attachment.originalName ||
+                                    attachment.name ||
+                                    `Attachment ${attachmentIndex + 1}`}
+                              </div>
+                            )
+                          )}
+
+                        </div>
+
+                      </div>
+                    )}
+
+                  </div>
+
+                  {studentAnswer.submittedAt && (
+                    <p className="mt-2 text-right text-xs text-gray-400">
+                      Submitted: {formatDateTime(studentAnswer.submittedAt)}
+                    </p>
+                  )}
+
+                </div>
+
+                {/* TEACHER EVALUATION */}
+                <div className="rounded-xl border border-emerald-100 bg-emerald-50/60 p-4">
+
+                  <div className="mb-3 flex items-center gap-2">
+
+                    <Award
+                      size={18}
+                      className="text-emerald-700"
+                    />
+
+                    <h3 className="text-sm font-bold text-emerald-800">
+                      Teacher Evaluation
+                    </h3>
+
+                  </div>
+
+                  {evaluation ? (
+                    <>
+
+                      {/* MARKS */}
+                      <div className="grid grid-cols-2 gap-3">
+
+                        <div className="rounded-lg bg-white p-3">
+
+                          <p className="text-xs text-gray-500">
+                            Marks Awarded
+                          </p>
+
+                          <p className="mt-1 text-xl font-bold text-emerald-700">
+                            {evaluation.marksAwarded}
+                          </p>
+
+                        </div>
+
+                        <div className="rounded-lg bg-white p-3">
+
+                          <p className="text-xs text-gray-500">
+                            Maximum Marks
+                          </p>
+
+                          <p className="mt-1 text-xl font-bold text-gray-800">
+                            {evaluation.maximumMarks}
+                          </p>
+
+                        </div>
+
+                      </div>
+
+                      {/* FEEDBACK */}
+                      <div className="mt-3 rounded-lg bg-white p-3">
+
+                        <div className="mb-2 flex items-center gap-2">
+
+                          <MessageSquare
+                            size={15}
+                            className="text-emerald-600"
+                          />
+
+                          <p className="text-xs font-bold text-gray-700">
+                            Teacher Feedback
+                          </p>
+
+                        </div>
+
+                        <p className="whitespace-pre-wrap text-sm leading-6 text-gray-700">
+                          {evaluation.feedback?.trim() ||
+                            "No feedback provided."}
+                        </p>
+
+                      </div>
+
+                      {/* TEACHER INFORMATION */}
+                      <div className="mt-3 flex flex-col gap-2 border-t border-emerald-100 pt-3 sm:flex-row sm:items-center sm:justify-between">
+
+                        <div className="flex items-center gap-2 text-xs text-gray-600">
+
+                          <UserRound
+                            size={14}
+                            className="text-emerald-600"
+                          />
+
+                          <span>
+                            Evaluated by:{" "}
+                            <strong>
+                              {getTeacherName(evaluation.teacher)}
+                            </strong>
+                          </span>
+
+                        </div>
+
+                        {evaluation.evaluatedAt && (
+                          <span className="text-xs text-gray-500">
+                            {formatDateTime(evaluation.evaluatedAt)}
+                          </span>
+                        )}
+
+                      </div>
+
+                    </>
+                  ) : (
+
+                    <div className="rounded-lg bg-white p-4 text-center">
+
+                      <p className="text-sm font-medium text-amber-700">
+                        Evaluation details are not available for this answer.
+                      </p>
+
+                    </div>
+
+                  )}
+
+                </div>
+
+              </div>
+
+            </div>
+          );
+        })}
+
+      </div>
+    )}
+
+  </div>
+)}
+
 
             <div className="space-y-6">
               <div className="rounded-2xl border border-white/20 bg-white p-6 shadow-xl">

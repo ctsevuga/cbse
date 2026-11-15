@@ -1,6 +1,7 @@
 
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { useSelector } from "react-redux";
 import {
   AlertCircle,
   BookOpen,
@@ -22,6 +23,12 @@ import {
 
 const ClassListScreen = () => {
   const navigate = useNavigate();
+const { userInfo } = useSelector((state) => state.auth);
+
+const canManageClasses = ["SCHOOL_ADMIN", "HM"].includes(
+  userInfo?.role
+);
+
 
   const [searchTerm, setSearchTerm] = useState("");
   const [deleteId, setDeleteId] = useState(null);
@@ -172,13 +179,15 @@ const ClassListScreen = () => {
               </div>
             </div>
 
-            <Link
-              to="/classes/create"
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700 focus:outline-none focus:ring-4 focus:ring-indigo-100"
-            >
-              <Plus size={18} />
-              Create Class
-            </Link>
+{canManageClasses && (
+  <Link
+    to="/classes/create"
+    className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700 focus:outline-none focus:ring-4 focus:ring-indigo-100"
+  >
+    <Plus size={18} />
+    Create Class
+  </Link>
+)}
           </div>
         </div>
       </div>
@@ -314,7 +323,7 @@ const ClassListScreen = () => {
                   : "Create your first class to start configuring your school's academic structure."}
               </p>
 
-              {!searchTerm && (
+              {canManageClasses && !searchTerm && (
                 <Link
                   to="/classes/create"
                   className="mt-6 inline-flex h-10 items-center gap-2 rounded-xl bg-indigo-600 px-5 text-sm font-semibold text-white transition hover:bg-indigo-700"

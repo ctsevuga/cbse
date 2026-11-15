@@ -1,3 +1,35 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+
+/* Improve MathLive editor readability */
+math-field {
+  display: block;
+  width: 100%;
+  min-height: 70px;
+  padding: 14px;
+  background: #ffffff;
+  color: #111827;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+
+  /* Improve input visibility */
+  --caret-color: #4f46e5;
+  --selection-background-color: #c7d2fe;
+  --contains-highlight-background-color: #eef2ff;
+}
+
+/* Keep keyboard above surrounding UI */
+body {
+  --keyboard-zindex: 3000;
+}
+
+/* Improve keyboard key contrast */
+body {
+  --keycap-background: #ffffff;
+  --keycap-text: #111827;
+  --keycap-background-hover: #e0e7ff;
+  --keycap-background-pressed: #c7d2fe;
+  --keyboard-border: 1px solid #cbd5e1;
+}

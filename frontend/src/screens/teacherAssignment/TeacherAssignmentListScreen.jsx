@@ -765,7 +765,7 @@ const TeacherAssignmentListScreen = () => {
                     (assignment) => {
                       const teacherName =
                         assignment.teacher
-                          ?.name || "Unknown Teacher";
+                          ?.user?.name || "Unknown Teacher";
 
                       const isClassTeacher =
                         assignment.assignmentType ===

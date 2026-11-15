@@ -126,38 +126,38 @@ const validateAssessment = async (
  * 1. The authenticated school
  * 2. The specified assessment
  */
-const validateAssessmentSection =
-  async (
-    sectionId,
-    assessmentId,
-    schoolId,
-  ) => {
-    if (!sectionId) {
-      throw new Error(
-        "Assessment section is required",
-      );
-    }
 
-    validateObjectId(
-      sectionId,
-      "assessment section ID",
+const validateAssessmentSection = async (
+  sectionId,
+  assessmentId,
+  schoolId,
+) => {
+  if (!sectionId) {
+    throw new Error(
+      "Assessment section is required",
     );
+  }
 
-    const section =
-      await AssessmentSection.findOne({
-        _id: sectionId,
-        assessment: assessmentId,
-        school: schoolId,
-      });
+  validateObjectId(
+    sectionId,
+    "assessment section ID",
+  );
 
-    if (!section) {
-      throw new Error(
-        "Assessment section does not belong to this school and assessment",
-      );
-    }
+  const section =
+    await AssessmentSection.findOne({
+      _id: sectionId,
+      assessment: assessmentId,
+    });
 
-    return section;
-  };
+  if (!section) {
+    throw new Error(
+      "Assessment section does not belong to this assessment",
+    );
+  }
+
+  return section;
+};
+
 
 /**
  * ======================================================
@@ -167,80 +167,32 @@ const validateAssessmentSection =
  * Question must belong to the same school
  * as the assessment.
  */
+
 const validateQuestion = async (
   questionId,
-  assessment,
+  assessmentData,
 ) => {
   if (!questionId) {
-    throw new Error(
-      "Question is required",
-    );
+    throw new Error("Question is required");
   }
 
-  validateObjectId(
-    questionId,
-    "question ID",
-  );
+  validateObjectId(questionId, "question ID");
 
-  const question =
-    await Question.findOne({
-      _id: questionId,
-      school: assessment.school,
-    });
+  const question = await Question.findOne({
+    _id: questionId,
+    isActive: true,
+    status: "APPROVED",
+  });
 
   if (!question) {
     throw new Error(
-      "Question not found for this school",
-    );
-  }
-
-  if (!question.isActive) {
-    throw new Error(
-      "Question is inactive",
-    );
-  }
-
-  if (question.status !== "APPROVED") {
-    throw new Error(
-      "Only approved questions can be added to an assessment",
-    );
-  }
-
-  if (
-    question.academicYear &&
-    assessment.academicYear &&
-    question.academicYear.toString() !==
-      assessment.academicYear.toString()
-  ) {
-    throw new Error(
-      "Question does not belong to the assessment academic year",
-    );
-  }
-
-  if (
-    question.class &&
-    assessment.class &&
-    question.class.toString() !==
-      assessment.class.toString()
-  ) {
-    throw new Error(
-      "Question does not belong to the assessment class",
-    );
-  }
-
-  if (
-    question.subject &&
-    assessment.subject &&
-    question.subject.toString() !==
-      assessment.subject.toString()
-  ) {
-    throw new Error(
-      "Question does not belong to the assessment subject",
+      "Approved active question not found",
     );
   }
 
   return question;
 };
+
 
 /**
  * ======================================================
@@ -495,189 +447,183 @@ const populateAssessmentQuestion = (
  *
  * @route POST /api/assessment-questions
  */
-const createAssessmentQuestion =
-  asyncHandler(
-    async (req, res) => {
-      const schoolId =
-        validateUserSchoolAccess(
-          req,
-          res,
-        );
 
-      const {
+ const createAssessmentQuestion =
+  asyncHandler(async (req, res) => {
+    const schoolId = validateUserSchoolAccess(
+      req,
+      res,
+    );
+
+    const {
+      assessment,
+      section,
+      question,
+      order,
+      marks,
+      negativeMarks,
+      questionGroup,
+    } = req.body;
+
+    // 1. Validate the assessment.
+    const assessmentData =
+      await validateAssessment(
         assessment,
+        schoolId,
+      );
+
+    validateAssessmentStatus(
+      assessmentData,
+    );
+
+    // 2. Validate the AssessmentSection.
+    // This must query the AssessmentSection model,
+    // not the generic Section model.
+    const assessmentSection =
+      await validateAssessmentSection(
         section,
-        question,
-        order,
-        marks,
-        negativeMarks,
-        questionGroup,
-        choiceGroup,
-      } = req.body;
-
-      const assessmentData =
-        await validateAssessment(
-          assessment,
-          schoolId,
-        );
-
-      validateAssessmentStatus(
-        assessmentData,
-      );
-
-      const assessmentSection =
-        await validateAssessmentSection(
-          section,
-          assessmentData._id,
-          schoolId,
-        );
-
-      const questionData =
-        await validateQuestion(
-          question,
-          assessmentData,
-        );
-
-      validateQuestionSectionCompatibility(
-        questionData,
-        assessmentSection,
-      );
-
-      validateOrder(order);
-
-      validateMarks(
-        marks,
-        negativeMarks === undefined
-          ? 0
-          : negativeMarks,
-      );
-
-      await validateQuestionGroup(
-        questionGroup,
-        assessmentData,
-      );
-
-      await validateChoiceGroup(
-        choiceGroup,
         assessmentData._id,
+        schoolId,
       );
 
-      if (
-        Number(marks) >
-        Number(
-          assessmentSection.marksPerQuestion,
-        )
-      ) {
-        res.status(400);
-        throw new Error(
-          "Question marks cannot exceed the section marksPerQuestion",
-        );
-      }
+    // 3. Validate the selected Question document.
+    const questionData =
+      await validateQuestion(
+        question,
+        assessmentData,
+      );
 
-      if (
-        Number(marks) !==
-        Number(
-          assessmentSection.marksPerQuestion,
-        )
-      ) {
-        res.status(400);
-        throw new Error(
-          "Question marks must match the section marksPerQuestion",
-        );
-      }
+    // 4. Verify that the question is compatible
+    // with the selected assessment section.
+    validateQuestionSectionCompatibility(
+      questionData,
+      assessmentSection,
+    );
 
-      /**
-       * Order uniqueness is scoped to school + assessment
-       * according to the AssessmentQuestion indexes.
-       */
-      const existingOrder =
-        await AssessmentQuestion.findOne({
-          school: schoolId,
-          assessment: assessmentData._id,
-          order,
-        });
+    // 5. Validate order and marks.
+    // validateOrder(order);
 
-      if (existingOrder) {
-        res.status(400);
-        throw new Error(
-          "Question order already exists in this assessment",
-        );
-      }
+    validateMarks(
+      marks,
+      negativeMarks === undefined
+        ? 0
+        : negativeMarks,
+    );
 
-      /**
-       * Question uniqueness is scoped to school + assessment.
-       */
-      const existingQuestion =
-        await AssessmentQuestion.findOne({
-          school: schoolId,
-          assessment: assessmentData._id,
-          question,
-        });
+    // 6. Validate the optional question group.
+    await validateQuestionGroup(
+      questionGroup,
+      assessmentData,
+    );
 
-      if (existingQuestion) {
-        res.status(400);
-        throw new Error(
-          "Question is already assigned to this assessment",
-        );
-      }
+    // 7. The question marks must match the
+    // AssessmentSection configuration.
+    if (
+      Number(marks) !==
+      Number(assessmentSection.marksPerQuestion)
+    ) {
+      res.status(400);
 
-      /**
-       * Section question count is also scoped by school.
-       */
-      const sectionQuestionCount =
-        await AssessmentQuestion.countDocuments({
-          school: schoolId,
-          assessment: assessmentData._id,
-          section: assessmentSection._id,
-        });
+      throw new Error(
+        `Question marks must match the section marksPerQuestion (${assessmentSection.marksPerQuestion})`,
+      );
+    }
 
-      if (
-        sectionQuestionCount >=
-        assessmentSection.numberOfQuestions
-      ) {
-        res.status(400);
-        throw new Error(
-          "The maximum number of questions for this section has been reached",
-        );
-      }
+    // 8. Check whether this question is already
+    // assigned to the assessment.
+    const existingQuestion =
+      await AssessmentQuestion.findOne({
+        school: schoolId,
+        assessment: assessmentData._id,
+        question: questionData._id,
+      });
 
-      /**
-       * IMPORTANT:
-       * school is now required by the model.
-       */
-      const assessmentQuestion =
-        await AssessmentQuestion.create({
-          school: schoolId,
-          assessment:
-            assessmentData._id,
-          section:
-            assessmentSection._id,
-          question:
-            questionData._id,
-          order,
-          marks,
-          negativeMarks:
-            negativeMarks !== undefined
-              ? negativeMarks
-              : 0,
-          questionGroup:
-            questionGroup || undefined,
-          choiceGroup:
-            choiceGroup || undefined,
-        });
+    if (existingQuestion) {
+      res.status(400);
 
-      const result =
-        await populateAssessmentQuestion(
-          AssessmentQuestion.findOne({
-            _id:
-              assessmentQuestion._id,
-            school: schoolId,
-          }),
-        );
+      throw new Error(
+        "Question is already assigned to this assessment",
+      );
+    }
 
-      res.status(201).json(result);
-    },
+    // 9. Prevent duplicate order numbers within
+    // the selected assessment section.
+    const existingOrder =
+  await AssessmentQuestion.findOne({
+    school: schoolId,
+    assessment: assessmentData._id,
+    section: assessmentSection._id,
+    order: Number(order),
+  });
+
+if (existingOrder) {
+  res.status(400);
+
+  throw new Error(
+    "Question order already exists in this assessment section",
   );
+}
+
+    // 10. Enforce the maximum question count
+    // configured on AssessmentSection.
+    const sectionQuestionCount =
+      await AssessmentQuestion.countDocuments({
+        school: schoolId,
+        assessment: assessmentData._id,
+        section: assessmentSection._id,
+      });
+
+    if (
+      sectionQuestionCount >=
+      assessmentSection.numberOfQuestions
+    ) {
+      res.status(400);
+
+      throw new Error(
+        `This section allows a maximum of ${assessmentSection.numberOfQuestions} questions`,
+      );
+    }
+
+    // 11. Create the assessment-question assignment.
+    // choiceGroup is intentionally omitted.
+    const assessmentQuestion =
+      await AssessmentQuestion.create({
+        school: schoolId,
+
+        assessment:
+          assessmentData._id,
+
+        section:
+          assessmentSection._id,
+
+        question:
+          questionData._id,
+
+        order: Number(order),
+
+        marks: Number(marks),
+
+        negativeMarks:
+          negativeMarks !== undefined
+            ? Number(negativeMarks)
+            : 0,
+
+        questionGroup:
+          questionGroup || undefined,
+      });
+
+    // 12. Populate the created assignment.
+    const result =
+      await populateAssessmentQuestion(
+        AssessmentQuestion.findOne({
+          _id: assessmentQuestion._id,
+          school: schoolId,
+        }),
+      );
+
+    res.status(201).json(result);
+  });
+
 
 /**
  * ======================================================

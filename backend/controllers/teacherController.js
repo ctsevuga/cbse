@@ -27,10 +27,13 @@ export const createTeacher = asyncHandler(
   async (req, res) => {
     const {
       user,
-      school: requestedSchool,
       employeeCode,
       qualification,
     } = req.body;
+
+    // ============================================
+    // 1. VALIDATE REQUIRED FIELDS
+    // ============================================
 
     if (!user || !employeeCode) {
       res.status(400);
@@ -39,31 +42,29 @@ export const createTeacher = asyncHandler(
       );
     }
 
-    const school = getUserSchool(
-      req,
-      requestedSchool,
-    );
+    // ============================================
+    // 2. GET SCHOOL FROM RESOLVE SCHOOL MIDDLEWARE
+    // ============================================
 
-    if (!school) {
+    const school = req.schoolId;
+
+    if (!school || !req.school) {
       res.status(400);
-      throw new Error("School is required");
+      throw new Error(
+        "School context is missing. Please authenticate and resolve school.",
+      );
     }
 
-    const schoolExists =
-      await School.findById(school);
-
-    if (!schoolExists) {
-      res.status(404);
-      throw new Error("School not found");
-    }
-
-    if (!schoolExists.isActive) {
+    if (!req.school.isActive) {
       res.status(400);
       throw new Error("School is inactive");
     }
 
-    const teacherUser =
-      await User.findById(user);
+    // ============================================
+    // 3. VALIDATE TEACHER USER
+    // ============================================
+
+    const teacherUser = await User.findById(user);
 
     if (!teacherUser) {
       res.status(404);
@@ -77,21 +78,32 @@ export const createTeacher = asyncHandler(
       );
     }
 
+    // ============================================
+    // 4. VALIDATE USER SCHOOL
+    // ============================================
+
+    const teacherUserSchool =
+      teacherUser.school?._id ??
+      teacherUser.school ??
+      teacherUser.schoolId;
+
     if (
-      !teacherUser.school ||
-      String(teacherUser.school) !==
-        String(school)
+      !teacherUserSchool ||
+      String(teacherUserSchool) !== String(school)
     ) {
       res.status(400);
       throw new Error(
-        "User does not belong to the selected school",
+        "User does not belong to the logged-in user's school",
       );
     }
 
-    const existingTeacher =
-      await Teacher.findOne({
-        user,
-      });
+    // ============================================
+    // 5. CHECK EXISTING TEACHER PROFILE
+    // ============================================
+
+    const existingTeacher = await Teacher.findOne({
+      user,
+    });
 
     if (existingTeacher) {
       res.status(400);
@@ -100,10 +112,12 @@ export const createTeacher = asyncHandler(
       );
     }
 
+    // ============================================
+    // 6. NORMALIZE EMPLOYEE CODE
+    // ============================================
+
     const normalizedEmployeeCode =
-      employeeCode
-        .trim()
-        .toUpperCase();
+      employeeCode.trim().toUpperCase();
 
     if (!normalizedEmployeeCode) {
       res.status(400);
@@ -112,11 +126,14 @@ export const createTeacher = asyncHandler(
       );
     }
 
+    // ============================================
+    // 7. CHECK EMPLOYEE CODE DUPLICATION
+    // ============================================
+
     const existingEmployeeCode =
       await Teacher.findOne({
         school,
-        employeeCode:
-          normalizedEmployeeCode,
+        employeeCode: normalizedEmployeeCode,
       });
 
     if (existingEmployeeCode) {
@@ -126,19 +143,23 @@ export const createTeacher = asyncHandler(
       );
     }
 
-    const teacher =
-      await Teacher.create({
-        user,
-        school,
-        employeeCode:
-          normalizedEmployeeCode,
-        qualification,
-      });
+    // ============================================
+    // 8. CREATE TEACHER
+    // ============================================
+
+    const teacher = await Teacher.create({
+      user,
+      school,
+      employeeCode: normalizedEmployeeCode,
+      qualification,
+    });
+
+    // ============================================
+    // 9. POPULATE RESPONSE
+    // ============================================
 
     const populatedTeacher =
-      await Teacher.findById(
-        teacher._id,
-      )
+      await Teacher.findById(teacher._id)
         .populate(
           "user",
           "name email phone role isActive",
@@ -148,9 +169,7 @@ export const createTeacher = asyncHandler(
           "name code",
         );
 
-    res
-      .status(201)
-      .json(populatedTeacher);
+    res.status(201).json(populatedTeacher);
   },
 );
 

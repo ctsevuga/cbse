@@ -123,85 +123,49 @@ const ResultQuestionTable = ({
 /* Table Head                                                                 */
 /* -------------------------------------------------------------------------- */
 
-const TableHead = ({
-  selectable,
-  showActions,
-}) => {
-  return (
-    <thead className="bg-gray-50">
-      <tr>
-        {selectable && (
-          <th
-            scope="col"
-            className="w-10 px-4 py-3"
-          >
-            <span className="sr-only">
-              Select
-            </span>
-          </th>
-        )}
-
-        <th
-          scope="col"
-          className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500"
-        >
-          Question
+const TableHead = ({ selectable, showActions }) => (
+  <thead className="bg-gray-50">
+    <tr>
+      {selectable && (
+        <th className="px-4 py-3 text-left">
+          Select
         </th>
+      )}
 
-        <th
-          scope="col"
-          className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500"
-        >
-          Subject
+      <th className="px-4 py-3 text-left">
+        Question
+      </th>
+
+      <th className="px-4 py-3 text-left">
+        Student
+      </th>
+
+      <th className="px-4 py-3 text-left">
+        Subject
+      </th>
+
+      <th className="px-4 py-3 text-left">
+        Chapter
+      </th>
+
+      <th className="px-4 py-3 text-left">
+        Topic
+      </th>
+
+      
+
+      <th className="px-4 py-3 text-center">
+        Evaluation
+      </th>
+
+      {showActions && (
+        <th className="px-4 py-3 text-right">
+          Actions
         </th>
-
-        <th
-          scope="col"
-          className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500"
-        >
-          Chapter
-        </th>
-
-        <th
-          scope="col"
-          className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500"
-        >
-          Topic
-        </th>
-
-        <th
-          scope="col"
-          className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500"
-        >
-          Type
-        </th>
-
-        <th
-          scope="col"
-          className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-gray-500"
-        >
-          Marks
-        </th>
-
-        <th
-          scope="col"
-          className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500"
-        >
-          Evaluation
-        </th>
-
-        {showActions && (
-          <th
-            scope="col"
-            className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wide text-gray-500"
-          >
-            Actions
-          </th>
-        )}
-      </tr>
-    </thead>
-  );
-};
+      )}
+    </tr>
+  </thead>
+);
 
 /* -------------------------------------------------------------------------- */
 /* Mobile Card                                                                */
@@ -289,13 +253,14 @@ const ResultQuestionMobileCard = ({
         />
 
         <MobileInfo
-          label="Marks"
-          value={`${formatMarks(
-            obtainedMarks,
-          )} / ${formatMarks(
-            maximumMarks,
-          )}`}
-        />
+  label="Maximum Marks"
+  value={formatMarks(maximumMarks)}
+/>
+
+<MobileInfo
+  label="Obtained Marks"
+  value={formatMarks(obtainedMarks)}
+/>
       </div>
 
       {/* Evaluation */}

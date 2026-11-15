@@ -113,24 +113,20 @@ export const resultDetailApiSlice = apiSlice.injectEndpoints({
     */
 
     getResultDetailsByResult: builder.query({
-      query: (resultId) => ({
-        url: `${RESULT_DETAIL_URL}/result/${resultId}`,
-      }),
+  query: ({ schoolSlug, resultId, ...params } = {}) => ({
+    url: `${RESULT_DETAIL_URL}/${schoolSlug}/result/${resultId}`,
+    params,
+  }),
 
-      providesTags: (result, error, resultId) => [
-        ...(result || []).map((item) => ({
-          type: "ResultDetail",
-          id: item._id,
-        })),
+  providesTags: (result, error, { resultId }) => [
+    {
+      type: "Result",
+      id: resultId,
+    },
+  ],
 
-        {
-          type: "ResultDetail",
-          id: `RESULT-${resultId}`,
-        },
-      ],
-
-      keepUnusedDataFor: 5,
-    }),
+  keepUnusedDataFor: 5,
+}),
 
     /*
     ==========================================================

@@ -20,10 +20,18 @@ import {
 
 import { useNavigate } from "react-router-dom";
 
+import { useSelector } from "react-redux";
+
 import { useGetMySchoolQuery } from "../../slices/schoolApiSlice";
 
 const MySchoolScreen = () => {
   const navigate = useNavigate();
+
+  const { userInfo } = useSelector((state) => state.auth);
+
+const canEditSchool = ["SCHOOL_ADMIN", "HM"].includes(
+  userInfo?.role
+);
 
   const {
     data: school,
@@ -36,13 +44,13 @@ const MySchoolScreen = () => {
   const handleView = () => {
     if (!school?._id) return;
 
-    navigate(`/schools/${school._id}`);
+    navigate(`/admin/school/${school._id}`);
   };
 
   const handleEdit = () => {
     if (!school?._id) return;
 
-    navigate(`/schools/${school._id}/edit`);
+    navigate(`/admin/school/${school._id}/edit`);
   };
 
   if (isLoading) {
@@ -183,14 +191,16 @@ const MySchoolScreen = () => {
                   View School
                 </button>
 
-                <button
-                  type="button"
-                  onClick={handleEdit}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/30 bg-white/10 px-5 py-3 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/20"
-                >
-                  <Pencil className="h-4 w-4" />
-                  Edit School
-                </button>
+                {canEditSchool && (
+  <button
+    type="button"
+    onClick={handleEdit}
+    className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/30 bg-white/10 px-5 py-3 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/20"
+  >
+    <Pencil className="h-4 w-4" />
+    Edit School
+  </button>
+)}
               </div>
             </div>
           </div>
@@ -387,14 +397,16 @@ const MySchoolScreen = () => {
                     View
                   </button>
 
-                  <button
-                    type="button"
-                    onClick={handleEdit}
-                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700"
-                  >
-                    <Pencil className="h-4 w-4" />
-                    Edit
-                  </button>
+                  {canEditSchool && (
+  <button
+    type="button"
+    onClick={handleEdit}
+    className="inline-flex items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700"
+  >
+    <Pencil className="h-4 w-4" />
+    Edit
+  </button>
+)}
                 </div>
               </div>
             </div>

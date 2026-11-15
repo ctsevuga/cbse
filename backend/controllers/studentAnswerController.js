@@ -22,17 +22,9 @@ const ANSWER_MODES = [
   "COMBINED",
 ];
 
-const ANSWER_STATUSES = [
-  "NOT_STARTED",
-  "IN_PROGRESS",
-  "SAVED",
-  "SUBMITTED",
-];
+const ANSWER_STATUSES = ["NOT_STARTED", "IN_PROGRESS", "SAVED", "SUBMITTED"];
 
-const STUDENT_EDITABLE_ATTEMPT_STATUSES = [
-  "NOT_STARTED",
-  "IN_PROGRESS",
-];
+const STUDENT_EDITABLE_ATTEMPT_STATUSES = ["NOT_STARTED", "IN_PROGRESS"];
 
 const validateObjectId = (value, fieldName) => {
   if (!value || !mongoose.Types.ObjectId.isValid(value)) {
@@ -73,30 +65,12 @@ const getStudentFromUser = async (req) => {
     school: schoolId,
     isActive: true,
   })
-    .populate(
-      "user",
-      "name email phone role isActive",
-    )
-    .populate(
-      "school",
-      "name code",
-    )
-    .populate(
-      "academicYear",
-      "name startDate endDate",
-    )
-    .populate(
-      "class",
-      "name code",
-    )
-    .populate(
-      "section",
-      "name",
-    )
-    .populate(
-      "stream",
-      "name code",
-    );
+    .populate("user", "name email phone role isActive")
+    .populate("school", "name code")
+    .populate("academicYear", "name startDate endDate")
+    .populate("class", "name code")
+    .populate("section", "name")
+    .populate("stream", "name code");
 
   if (!student) {
     const error = new Error(
@@ -122,44 +96,22 @@ const validateStudent = async (studentId) => {
     _id: studentId,
     school: schoolId,
   })
-    .populate(
-      "user",
-      "name email phone role isActive",
-    )
-    .populate(
-      "school",
-      "name code",
-    )
-    .populate(
-      "academicYear",
-      "name startDate endDate",
-    )
-    .populate(
-      "class",
-      "name code",
-    )
-    .populate(
-      "section",
-      "name",
-    )
-    .populate(
-      "stream",
-      "name code",
-    );
+    .populate("user", "name email phone role isActive")
+    .populate("school", "name code")
+    .populate("academicYear", "name startDate endDate")
+    .populate("class", "name code")
+    .populate("section", "name")
+    .populate("stream", "name code");
 
   if (!student) {
-    const error = new Error(
-      "Student not found",
-    );
+    const error = new Error("Student not found");
 
     error.statusCode = 404;
     throw error;
   }
 
   if (!student.isActive) {
-    const error = new Error(
-      "Student is inactive",
-    );
+    const error = new Error("Student is inactive");
 
     error.statusCode = 400;
     throw error;
@@ -174,54 +126,29 @@ const validateStudent = async (studentId) => {
  * If you prefer, validateStudent() can receive schoolId explicitly.
  * Passing it explicitly is generally cleaner.
  */
-const validateStudentInSchool = async (
-  studentId,
-  schoolId,
-) => {
+const validateStudentInSchool = async (studentId, schoolId) => {
   validateObjectId(studentId, "student ID");
 
   const student = await Student.findOne({
     _id: studentId,
     school: schoolId,
   })
-    .populate(
-      "user",
-      "name email phone role isActive",
-    )
-    .populate(
-      "school",
-      "name code",
-    )
-    .populate(
-      "academicYear",
-      "name startDate endDate",
-    )
-    .populate(
-      "class",
-      "name code",
-    )
-    .populate(
-      "section",
-      "name",
-    )
-    .populate(
-      "stream",
-      "name code",
-    );
+    .populate("user", "name email phone role isActive")
+    .populate("school", "name code")
+    .populate("academicYear", "name startDate endDate")
+    .populate("class", "name code")
+    .populate("section", "name")
+    .populate("stream", "name code");
 
   if (!student) {
-    const error = new Error(
-      "Student not found",
-    );
+    const error = new Error("Student not found");
 
     error.statusCode = 404;
     throw error;
   }
 
   if (!student.isActive) {
-    const error = new Error(
-      "Student is inactive",
-    );
+    const error = new Error("Student is inactive");
 
     error.statusCode = 400;
     throw error;
@@ -234,15 +161,10 @@ const validateStudentInSchool = async (
  * Validate and load an attempt belonging to the
  * authenticated user's school.
  */
-const validateAttempt = async (
-  attemptId,
-  schoolId,
-) => {
+const validateAttempt = async (attemptId, schoolId) => {
   validateObjectId(attemptId, "attempt ID");
 
-  const attempt = await StudentAttempt.findById(
-    attemptId,
-  )
+  const attempt = await StudentAttempt.findById(attemptId)
     .populate({
       path: "assessment",
       populate: [
@@ -277,8 +199,7 @@ const validateAttempt = async (
       populate: [
         {
           path: "user",
-          select:
-            "name email phone role isActive",
+          select: "name email phone role isActive",
         },
         {
           path: "school",
@@ -304,41 +225,26 @@ const validateAttempt = async (
     });
 
   if (!attempt) {
-    const error = new Error(
-      "Student attempt not found",
-    );
+    const error = new Error("Student attempt not found");
 
     error.statusCode = 404;
     throw error;
   }
 
   const assessmentSchool =
-    attempt.assessment?.school?._id ||
-    attempt.assessment?.school;
+    attempt.assessment?.school?._id || attempt.assessment?.school;
 
-  if (
-    !assessmentSchool ||
-    String(assessmentSchool) !== String(schoolId)
-  ) {
-    const error = new Error(
-      "Attempt does not belong to your school",
-    );
+  if (!assessmentSchool || String(assessmentSchool) !== String(schoolId)) {
+    const error = new Error("Attempt does not belong to your school");
 
     error.statusCode = 403;
     throw error;
   }
 
-  const studentSchool =
-    attempt.student?.school?._id ||
-    attempt.student?.school;
+  const studentSchool = attempt.student?.school?._id || attempt.student?.school;
 
-  if (
-    !studentSchool ||
-    String(studentSchool) !== String(schoolId)
-  ) {
-    const error = new Error(
-      "Attempt student does not belong to your school",
-    );
+  if (!studentSchool || String(studentSchool) !== String(schoolId)) {
+    const error = new Error("Attempt student does not belong to your school");
 
     error.statusCode = 403;
     throw error;
@@ -352,27 +258,17 @@ const validateAttempt = async (
  *
  * Staff users are allowed to access school-scoped attempts.
  */
-const validateAttemptOwner = async (
-  attempt,
-  req,
-) => {
+const validateAttemptOwner = async (attempt, req) => {
   if (req.user.role !== "STUDENT") {
     return;
   }
 
   const student = await getStudentFromUser(req);
 
-  const attemptStudentId =
-    attempt.student?._id ||
-    attempt.student;
+  const attemptStudentId = attempt.student?._id || attempt.student;
 
-  if (
-    String(attemptStudentId) !==
-    String(student._id)
-  ) {
-    const error = new Error(
-      "You are not authorized to access this attempt",
-    );
+  if (String(attemptStudentId) !== String(student._id)) {
+    const error = new Error("You are not authorized to access this attempt");
 
     error.statusCode = 403;
     throw error;
@@ -383,42 +279,32 @@ const validateAttemptOwner = async (
  * Validate an AssessmentQuestion belongs to the
  * assessment being attempted.
  */
-const validateAssessmentQuestion = async (
-  assessmentQuestionId,
-  attempt,
-) => {
-  validateObjectId(
-    assessmentQuestionId,
-    "assessment question ID",
-  );
+const validateAssessmentQuestion = async (assessmentQuestionId, attempt) => {
+  validateObjectId(assessmentQuestionId, "assessment question ID");
 
-  const assessmentQuestion =
-    await AssessmentQuestion.findById(
-      assessmentQuestionId,
-    )
-      .populate({
-        path: "question",
-        select:
-          "school academicYear class subject chapter topic questionType marks answerMode options correctAnswer difficulty status isActive",
-      })
-      .populate({
-        path: "section",
-        select:
-          "assessment sectionCode title questionType marksPerQuestion numberOfQuestions totalMarks",
-      });
+  const assessmentQuestion = await AssessmentQuestion.findById(
+    assessmentQuestionId,
+  )
+    .populate({
+      path: "question",
+      select:
+        "school academicYear class subject chapter topic questionType marks answerMode options correctAnswer difficulty status isActive",
+    })
+    .populate({
+      path: "section",
+      select:
+        "assessment sectionCode title questionType marksPerQuestion numberOfQuestions totalMarks",
+    });
 
   if (!assessmentQuestion) {
-    const error = new Error(
-      "Assessment question not found",
-    );
+    const error = new Error("Assessment question not found");
 
     error.statusCode = 404;
     throw error;
   }
 
   if (
-    String(assessmentQuestion.assessment) !==
-    String(attempt.assessment._id)
+    String(assessmentQuestion.assessment) !== String(attempt.assessment._id)
   ) {
     const error = new Error(
       "Assessment question does not belong to this assessment",
@@ -428,14 +314,11 @@ const validateAssessmentQuestion = async (
     throw error;
   }
 
-  const questionOrder =
-    attempt.questionOrder || [];
+  const questionOrder = attempt.questionOrder || [];
 
   if (
     !questionOrder.some(
-      (questionId) =>
-        String(questionId) ===
-        String(assessmentQuestion._id),
+      (questionId) => String(questionId) === String(assessmentQuestion._id),
     )
   ) {
     const error = new Error(
@@ -458,14 +341,9 @@ const validateAssessmentQuestion = async (
   return assessmentQuestion;
 };
 
-const validateAnswerMode = (
-  answerMode,
-  question,
-) => {
+const validateAnswerMode = (answerMode, question) => {
   if (!ANSWER_MODES.includes(answerMode)) {
-    const error = new Error(
-      "Invalid answerMode",
-    );
+    const error = new Error("Invalid answerMode");
 
     error.statusCode = 400;
     throw error;
@@ -481,12 +359,7 @@ const validateAnswerMode = (
   }
 };
 
-const validateMCQAnswer = (
-  answerMode,
-  answer,
-  selectedOption,
-  question,
-) => {
+const validateMCQAnswer = (answerMode, answer, selectedOption, question) => {
   if (answerMode !== "MCQ") {
     return;
   }
@@ -496,38 +369,28 @@ const validateMCQAnswer = (
     selectedOption === null ||
     String(selectedOption).trim() === ""
   ) {
-    const error = new Error(
-      "selectedOption is required for MCQ questions",
-    );
+    const error = new Error("selectedOption is required for MCQ questions");
 
     error.statusCode = 400;
     throw error;
   }
 
-  if (
-    Array.isArray(question.options) &&
-    question.options.length > 0
-  ) {
-    const optionExists = question.options.some(
-      (option) => {
-        if (typeof option === "string") {
-          return option === selectedOption;
-        }
+  if (Array.isArray(question.options) && question.options.length > 0) {
+    const optionExists = question.options.some((option) => {
+      if (typeof option === "string") {
+        return option === selectedOption;
+      }
 
-        if (
-          option &&
-          typeof option === "object"
-        ) {
-          return (
-            option.value === selectedOption ||
-            option.label === selectedOption ||
-            option.key === selectedOption
-          );
-        }
+      if (option && typeof option === "object") {
+        return (
+          option.value === selectedOption ||
+          option.label === selectedOption ||
+          option.key === selectedOption
+        );
+      }
 
-        return false;
-      },
-    );
+      return false;
+    });
 
     if (!optionExists) {
       const error = new Error(
@@ -545,54 +408,33 @@ const validateMCQAnswer = (
     typeof answer !== "string" &&
     typeof answer !== "object"
   ) {
-    const error = new Error(
-      "Invalid MCQ answer",
-    );
+    const error = new Error("Invalid MCQ answer");
 
     error.statusCode = 400;
     throw error;
   }
 };
 
-const validateAnswerValue = (
-  answerMode,
-  answer,
-) => {
-  if (
-    answer === undefined ||
-    answer === null
-  ) {
+const validateAnswerValue = (answerMode, answer) => {
+  if (answer === undefined || answer === null) {
     return;
   }
 
   if (
-    ["TEXT", "RICH_TEXT", "MATH_TEXT"].includes(
-      answerMode,
-    ) &&
+    ["TEXT", "RICH_TEXT", "MATH_TEXT"].includes(answerMode) &&
     typeof answer !== "string"
   ) {
-    const error = new Error(
-      `${answerMode} answers must be strings`,
-    );
+    const error = new Error(`${answerMode} answers must be strings`);
 
     error.statusCode = 400;
     throw error;
   }
 
   if (
-    [
-      "TABLE",
-      "MATH_TABLE",
-      "COMBINED",
-    ].includes(answerMode) &&
-    (
-      typeof answer !== "object" ||
-      Array.isArray(answer) === false
-    )
+    ["TABLE", "MATH_TABLE", "COMBINED"].includes(answerMode) &&
+    (typeof answer !== "object" || Array.isArray(answer) === false)
   ) {
-    const error = new Error(
-      `${answerMode} answers must be structured data`,
-    );
+    const error = new Error(`${answerMode} answers must be structured data`);
 
     error.statusCode = 400;
     throw error;
@@ -601,23 +443,15 @@ const validateAnswerValue = (
 
 const validateAnswerStatus = (status) => {
   if (!ANSWER_STATUSES.includes(status)) {
-    const error = new Error(
-      "Invalid answer status",
-    );
+    const error = new Error("Invalid answer status");
 
     error.statusCode = 400;
     throw error;
   }
 };
 
-const validateAnswerCanBeEdited = (
-  attempt,
-) => {
-  if (
-    !STUDENT_EDITABLE_ATTEMPT_STATUSES.includes(
-      attempt.status,
-    )
-  ) {
+const validateAnswerCanBeEdited = (attempt) => {
+  if (!STUDENT_EDITABLE_ATTEMPT_STATUSES.includes(attempt.status)) {
     const error = new Error(
       "Answers cannot be modified after the attempt has been submitted",
     );
@@ -627,19 +461,12 @@ const validateAnswerCanBeEdited = (
   }
 };
 
-const validateAssessmentWindow = (
-  attempt,
-) => {
+const validateAssessmentWindow = (attempt) => {
   const assessment = attempt.assessment;
   const now = new Date();
 
-  if (
-    assessment.endDate &&
-    now > new Date(assessment.endDate)
-  ) {
-    const error = new Error(
-      "The assessment time has expired",
-    );
+  if (assessment.endDate && now > new Date(assessment.endDate)) {
+    const error = new Error("The assessment time has expired");
 
     error.statusCode = 400;
     error.code = "ASSESSMENT_EXPIRED";
@@ -666,24 +493,22 @@ const populateStudentAnswer = (query) => {
         {
           path: "question",
           select:
-            "questionText questionType answerMode options difficulty marks",
+            "questionText questionType answerMode options correctAnswer difficulty marks negativeMarks",
         },
       ],
     })
     .populate({
       path: "question",
       select:
-        "questionText questionType answerMode options difficulty marks",
+        "questionText questionType answerMode options correctAnswer difficulty marks negativeMarks",
     })
     .populate({
       path: "student",
-      select:
-        "user school admissionNumber academicYear class section stream",
+      select: "user school admissionNumber academicYear class section stream",
       populate: [
         {
           path: "user",
-          select:
-            "name email phone role",
+          select: "name email phone role",
         },
         {
           path: "school",
@@ -712,45 +537,28 @@ const populateStudentAnswer = (query) => {
 /**
  * Keep StudentAttempt activity synchronized with answers.
  */
-const updateAttemptActivity = async (
-  attemptId,
-) => {
-  const attemptedQuestions =
-    await StudentAnswer.countDocuments({
-      attempt: attemptId,
-      status: {
-        $in: [
-          "SAVED",
-          "SUBMITTED",
-        ],
-      },
-    });
-
-  await StudentAttempt.findByIdAndUpdate(
-    attemptId,
-    {
-      lastActivityAt: new Date(),
-      attemptedQuestions,
+const updateAttemptActivity = async (attemptId) => {
+  const attemptedQuestions = await StudentAnswer.countDocuments({
+    attempt: attemptId,
+    status: {
+      $in: ["SAVED", "SUBMITTED"],
     },
-  );
+  });
+
+  await StudentAttempt.findByIdAndUpdate(attemptId, {
+    lastActivityAt: new Date(),
+    attemptedQuestions,
+  });
 };
 
 /**
  * Make sure StudentAnswer has internally
  * consistent references.
  */
-const validateExistingAnswerReferences = async (
-  answer,
-  attempt,
-) => {
-  const attemptStudentId =
-    attempt.student?._id ||
-    attempt.student;
+const validateExistingAnswerReferences = async (answer, attempt) => {
+  const attemptStudentId = attempt.student?._id || attempt.student;
 
-  if (
-    String(answer.student) !==
-    String(attemptStudentId)
-  ) {
+  if (String(answer.student) !== String(attemptStudentId)) {
     const error = new Error(
       "Student answer does not belong to the attempt student",
     );
@@ -759,16 +567,12 @@ const validateExistingAnswerReferences = async (
     throw error;
   }
 
-  const assessmentQuestion =
-    await validateAssessmentQuestion(
-      answer.assessmentQuestion,
-      attempt,
-    );
+  const assessmentQuestion = await validateAssessmentQuestion(
+    answer.assessmentQuestion,
+    attempt,
+  );
 
-  if (
-    String(answer.question) !==
-    String(assessmentQuestion.question._id)
-  ) {
+  if (String(answer.question) !== String(assessmentQuestion.question._id)) {
     const error = new Error(
       "Student answer question does not match the assessment question",
     );
@@ -783,182 +587,121 @@ const validateExistingAnswerReferences = async (
 /*
  * Create or save an answer.
  */
-export const saveStudentAnswer =
-  asyncHandler(async (req, res) => {
-    const {
-      attemptId,
-      assessmentQuestionId,
-      answerMode,
-      answer = null,
-      selectedOption = null,
-      attachments = [],
-    } = req.body;
 
-    const schoolId = getUserSchool(req);
+export const saveStudentAnswer = asyncHandler(async (req, res) => {
+  const {
+    attemptId,
+    assessmentQuestionId,
+    answerMode,
+    answer = null,
+    selectedOption = null,
+    attachments = [],
+  } = req.body;
 
-    validateObjectId(
-      attemptId,
-      "attempt ID",
-    );
+  const schoolId = getUserSchool(req);
 
-    validateObjectId(
-      assessmentQuestionId,
-      "assessment question ID",
-    );
+  validateObjectId(attemptId, "attempt ID");
 
-    if (!answerMode) {
-      res.status(400);
-      throw new Error(
-        "answerMode is required",
-      );
-    }
+  validateObjectId(assessmentQuestionId, "assessment question ID");
 
-    const attempt =
-      await validateAttempt(
-        attemptId,
-        schoolId,
-      );
+  if (!answerMode) {
+    res.status(400);
+    throw new Error("answerMode is required");
+  }
 
-    await validateAttemptOwner(
-      attempt,
-      req,
-    );
+  const attempt = await validateAttempt(attemptId, schoolId);
 
-    validateAnswerCanBeEdited(attempt);
-    validateAssessmentWindow(attempt);
+  await validateAttemptOwner(attempt, req);
 
-    const assessmentQuestion =
-      await validateAssessmentQuestion(
-        assessmentQuestionId,
-        attempt,
-      );
+  validateAnswerCanBeEdited(attempt);
+  validateAssessmentWindow(attempt);
 
-    const question =
-      assessmentQuestion.question;
+  const assessmentQuestion = await validateAssessmentQuestion(
+    assessmentQuestionId,
+    attempt,
+  );
 
-    if (!question.isActive) {
-      res.status(400);
-      throw new Error(
-        "The question is no longer active",
-      );
-    }
+  const question = assessmentQuestion.question;
 
-    if (question.status !== "APPROVED") {
-      res.status(400);
-      throw new Error(
-        "Only approved questions can be answered",
-      );
-    }
+  if (!question.isActive) {
+    res.status(400);
+    throw new Error("The question is no longer active");
+  }
 
-    validateAnswerMode(
-      answerMode,
-      question,
-    );
+  if (question.status !== "APPROVED") {
+    res.status(400);
+    throw new Error("Only approved questions can be answered");
+  }
 
-    validateMCQAnswer(
+  validateAnswerMode(answerMode, question);
+
+  validateMCQAnswer(answerMode, answer, selectedOption, question);
+
+  validateAnswerValue(answerMode, answer);
+
+  const now = new Date();
+
+  let studentAnswer = await StudentAnswer.findOne({
+    attempt: attempt._id,
+    assessmentQuestion: assessmentQuestion._id,
+  });
+
+  if (studentAnswer && studentAnswer.status === "SUBMITTED") {
+    res.status(400);
+    throw new Error("This answer has already been submitted");
+  }
+
+  const studentId = attempt.student?._id || attempt.student;
+
+  if (!studentAnswer) {
+    studentAnswer = new StudentAnswer({
+      attempt: attempt._id,
+      assessmentQuestion: assessmentQuestion._id,
+      question: question._id,
+      student: studentId,
       answerMode,
       answer,
       selectedOption,
-      question,
-    );
+      attachments,
+      status: "SAVED",
+      startedAt: now,
+      lastSavedAt: now,
+    });
+  } else {
+    if (String(studentAnswer.student) !== String(studentId)) {
+      res.status(400);
+      throw new Error("Existing answer belongs to another student");
+    }
 
-    validateAnswerValue(
-      answerMode,
-      answer,
-    );
-
-    const now = new Date();
-
-    let studentAnswer =
-      await StudentAnswer.findOne({
-        attempt: attempt._id,
-        assessmentQuestion:
-          assessmentQuestion._id,
-      });
-
-    if (
-      studentAnswer &&
-      studentAnswer.status === "SUBMITTED"
-    ) {
+    if (String(studentAnswer.question) !== String(question._id)) {
       res.status(400);
       throw new Error(
-        "This answer has already been submitted",
+        "Existing answer question does not match the assessment question",
       );
     }
 
-    const studentId =
-      attempt.student?._id ||
-      attempt.student;
+    studentAnswer.answerMode = answerMode;
+    studentAnswer.answer = answer;
+    studentAnswer.selectedOption = selectedOption;
+    studentAnswer.attachments = attachments;
+    studentAnswer.status = "SAVED";
+    studentAnswer.lastSavedAt = now;
 
-    if (!studentAnswer) {
-      studentAnswer =
-        new StudentAnswer({
-          attempt: attempt._id,
-          assessmentQuestion:
-            assessmentQuestion._id,
-          question: question._id,
-          student: studentId,
-          answerMode,
-          answer,
-          selectedOption,
-          attachments,
-          status: "SAVED",
-          startedAt: now,
-          lastSavedAt: now,
-        });
-    } else {
-      if (
-        String(studentAnswer.student) !==
-        String(studentId)
-      ) {
-        res.status(400);
-        throw new Error(
-          "Existing answer belongs to another student",
-        );
-      }
-
-      if (
-        String(studentAnswer.question) !==
-        String(question._id)
-      ) {
-        res.status(400);
-        throw new Error(
-          "Existing answer question does not match the assessment question",
-        );
-      }
-
-      studentAnswer.answerMode = answerMode;
-      studentAnswer.answer = answer;
-      studentAnswer.selectedOption =
-        selectedOption;
-      studentAnswer.attachments =
-        attachments;
-      studentAnswer.status = "SAVED";
-      studentAnswer.lastSavedAt = now;
-
-      if (!studentAnswer.startedAt) {
-        studentAnswer.startedAt = now;
-      }
+    if (!studentAnswer.startedAt) {
+      studentAnswer.startedAt = now;
     }
+  }
 
-    const savedAnswer =
-      await studentAnswer.save();
+  const savedAnswer = await studentAnswer.save();
 
-    await updateAttemptActivity(
-      attempt._id,
-    );
+  await updateAttemptActivity(attempt._id);
 
-    const result =
-      await populateStudentAnswer(
-        StudentAnswer.findById(
-          savedAnswer._id,
-        ),
-      );
+  const result = await populateStudentAnswer(
+    StudentAnswer.findById(savedAnswer._id),
+  );
 
-    res.status(201).json(
-      await result,
-    );
-  });
+  res.status(201).json(await result);
+});
 
 /*
  * Get all student answers.
@@ -966,740 +709,739 @@ export const saveStudentAnswer =
  * Students can only retrieve their own answers.
  * Staff can retrieve answers belonging to their school.
  */
-export const getStudentAnswers =
-  asyncHandler(async (req, res) => {
-    const schoolId = getUserSchool(req);
+export const getStudentAnswers = asyncHandler(async (req, res) => {
+  const schoolId = getUserSchool(req);
 
-    const filter = {};
+  const filter = {};
 
-    if (req.query.attemptId) {
-      validateObjectId(
-        req.query.attemptId,
-        "attempt ID",
-      );
+  if (req.query.attemptId) {
+    validateObjectId(req.query.attemptId, "attempt ID");
 
-      const attempt =
-        await validateAttempt(
-          req.query.attemptId,
-          schoolId,
-        );
+    const attempt = await validateAttempt(req.query.attemptId, schoolId);
 
-      await validateAttemptOwner(
-        attempt,
-        req,
-      );
+    await validateAttemptOwner(attempt, req);
 
-      filter.attempt = attempt._id;
-    }
+    filter.attempt = attempt._id;
+  }
 
-    if (req.query.studentId) {
-      validateObjectId(
-        req.query.studentId,
-        "student ID",
-      );
+  if (req.query.studentId) {
+    validateObjectId(req.query.studentId, "student ID");
 
-      const student =
-        await validateStudentInSchool(
-          req.query.studentId,
-          schoolId,
-        );
+    const student = await validateStudentInSchool(
+      req.query.studentId,
+      schoolId,
+    );
 
-      if (req.user.role === "STUDENT") {
-        const myStudent =
-          await getStudentFromUser(req);
-
-        if (
-          String(student._id) !==
-          String(myStudent._id)
-        ) {
-          res.status(403);
-          throw new Error(
-            "You are not authorized to access these answers",
-          );
-        }
-      }
-
-      filter.student = student._id;
-    }
-
-    if (
-      req.query.assessmentQuestionId
-    ) {
-      validateObjectId(
-        req.query.assessmentQuestionId,
-        "assessment question ID",
-      );
-
-      filter.assessmentQuestion =
-        req.query.assessmentQuestionId;
-    }
-
-    if (req.query.status) {
-      validateAnswerStatus(
-        req.query.status,
-      );
-
-      filter.status = req.query.status;
-    }
-
-    /*
-     * If a student did not provide attemptId/studentId,
-     * force the query to the authenticated student.
-     */
     if (req.user.role === "STUDENT") {
-      const student =
-        await getStudentFromUser(req);
+      const myStudent = await getStudentFromUser(req);
 
-      filter.student = student._id;
+      if (String(student._id) !== String(myStudent._id)) {
+        res.status(403);
+        throw new Error("You are not authorized to access these answers");
+      }
     }
 
-    const answers =
-      await populateStudentAnswer(
-        StudentAnswer.find(filter).sort({
-          createdAt: 1,
-        }),
-      );
+    filter.student = student._id;
+  }
 
-    res.json(await answers);
-  });
+  if (req.query.assessmentQuestionId) {
+    validateObjectId(req.query.assessmentQuestionId, "assessment question ID");
+
+    filter.assessmentQuestion = req.query.assessmentQuestionId;
+  }
+
+  if (req.query.status) {
+    validateAnswerStatus(req.query.status);
+
+    filter.status = req.query.status;
+  }
+
+  /*
+   * If a student did not provide attemptId/studentId,
+   * force the query to the authenticated student.
+   */
+  if (req.user.role === "STUDENT") {
+    const student = await getStudentFromUser(req);
+
+    filter.student = student._id;
+  }
+
+  const answers = await populateStudentAnswer(
+    StudentAnswer.find(filter).sort({
+      createdAt: 1,
+    }),
+  );
+
+  res.json(await answers);
+});
 
 /*
  * Get a single answer.
  */
-export const getStudentAnswerById =
-  asyncHandler(async (req, res) => {
-    const schoolId = getUserSchool(req);
+export const getStudentAnswerById = asyncHandler(async (req, res) => {
+  const schoolId = getUserSchool(req);
 
-    validateObjectId(
-      req.params.id,
-      "answer ID",
-    );
+  validateObjectId(req.params.id, "answer ID");
 
-    const answer =
-      await StudentAnswer.findById(
-        req.params.id,
-      );
+  const answer = await StudentAnswer.findById(req.params.id);
 
-    if (!answer) {
-      res.status(404);
-      throw new Error(
-        "Student answer not found",
-      );
-    }
+  if (!answer) {
+    res.status(404);
+    throw new Error("Student answer not found");
+  }
 
-    const attempt =
-      await validateAttempt(
-        answer.attempt,
-        schoolId,
-      );
+  const attempt = await validateAttempt(answer.attempt, schoolId);
 
-    await validateAttemptOwner(
-      attempt,
-      req,
-    );
+  await validateAttemptOwner(attempt, req);
 
-    await validateExistingAnswerReferences(
-      answer,
-      attempt,
-    );
+  await validateExistingAnswerReferences(answer, attempt);
 
-    const result =
-      await populateStudentAnswer(
-        StudentAnswer.findById(
-          answer._id,
-        ),
-      );
+  const result = await populateStudentAnswer(
+    StudentAnswer.findById(answer._id),
+  );
 
-    res.json(await result);
-  });
+  res.json(await result);
+});
 
 /*
  * Get answers for an attempt.
  */
 
-export const getAnswersByAttempt = asyncHandler(
-  async (req, res) => {
-    const schoolId = getUserSchool(req);
+export const getAnswersByAttempt = asyncHandler(async (req, res) => {
+  const schoolId = getUserSchool(req);
 
-    validateObjectId(req.params.attemptId, "attempt ID");
+  validateObjectId(req.params.attemptId, "attempt ID");
 
-    const attempt = await validateAttempt(
-      req.params.attemptId,
-      schoolId
-    );
+  const attempt = await validateAttempt(req.params.attemptId, schoolId);
 
-    await validateAttemptOwner(attempt, req);
+  await validateAttemptOwner(attempt, req);
 
-    const answers = await populateStudentAnswer(
-      StudentAnswer.find({
-        attempt: attempt._id,
-      }).sort({
-        createdAt: 1,
-      })
-    );
+  const answerDocuments = await populateStudentAnswer(
+    StudentAnswer.find({
+      attempt: attempt._id,
+    }).sort({ createdAt: 1 }),
+  );
 
-    // Get IDs of all student answers.
-    const answerIds = answers.map((answer) => answer._id);
-
-    // Fetch evaluation documents linked to these answers.
-    const evaluations = await AnswerEvaluation.find({
-      studentAnswer: { $in: answerIds },
-    }).lean();
-
-    // Map evaluations by studentAnswer ID.
-    const evaluationMap = new Map(
-      evaluations.map((evaluation) => [
-        String(evaluation.studentAnswer?._id ??
-          evaluation.studentAnswer),
-        evaluation,
-      ])
-    );
-
-    // Attach the evaluation document to each answer.
-    const result = answers.map((answer) => {
-      const answerObject = answer.toObject();
-
-      return {
-        ...answerObject,
-        evaluation:
-          evaluationMap.get(String(answer._id)) ?? null,
-      };
-    });
-
-    res.json(result);
-  }
+  const answers = answerDocuments.map((doc) =>
+  typeof doc.toObject === "function" ? doc.toObject() : doc,
 );
 
+// ==========================================
+// SORT BY SECTION FIRST, THEN QUESTION ORDER
+// ==========================================
+
+const getSectionOrder = (answer) => {
+  const assessmentQuestion = answer.assessmentQuestion;
+
+  return (
+    assessmentQuestion?.section?.order ??
+    assessmentQuestion?.sectionOrder ??
+    assessmentQuestion?.section?.sectionOrder ??
+    answer.section?.order ??
+    answer.sectionOrder ??
+    0
+  );
+};
+
+const getQuestionOrder = (answer) => {
+  const assessmentQuestion = answer.assessmentQuestion;
+
+  return (
+    assessmentQuestion?.order ??
+    assessmentQuestion?.questionOrder ??
+    answer.order ??
+    answer.questionOrder ??
+    0
+  );
+};
+
+answers.sort((a, b) => {
+  const sectionDifference =
+    getSectionOrder(a) - getSectionOrder(b);
+
+  if (sectionDifference !== 0) {
+    return sectionDifference;
+  }
+
+  return getQuestionOrder(a) - getQuestionOrder(b);
+});
+
+  const answerIds = answers.map((answer) => answer._id);
+
+  // Fetch existing evaluations.
+  const evaluations = await AnswerEvaluation.find({
+    studentAnswer: { $in: answerIds },
+  }).lean();
+
+  const evaluationMap = new Map(
+    evaluations.map((evaluation) => [
+      String(evaluation.studentAnswer?._id ?? evaluation.studentAnswer),
+      evaluation,
+    ]),
+  );
+
+  // Normalize strings and option objects.
+  const normalize = (value) => {
+    if (value === null || value === undefined) {
+      return "";
+    }
+
+    if (typeof value === "object") {
+      return String(value.value ?? value.label ?? value.text ?? "")
+        .trim()
+        .toLowerCase();
+    }
+
+    return String(value).trim().toLowerCase();
+  };
+
+  // ==========================================
+  // PREPARE AUTOMATIC MCQ EVALUATIONS
+  // ==========================================
+
+  const bulkOperations = [];
+  const mcqResults = new Map();
+
+  for (const answer of answers) {
+    const question =
+      answer.question && typeof answer.question === "object"
+        ? answer.question
+        : null;
+
+    const answerMode = answer.answerMode || question?.answerMode;
+
+    const isMCQ = question?.questionType === "MCQ" || answerMode === "MCQ";
+
+    if (!isMCQ || !question) {
+      continue;
+    }
+
+    const options = question.options ?? [];
+
+    const studentResponse = answer.selectedOption ?? answer.answer ?? null;
+
+    const correctAnswer = question.correctAnswer ?? null;
+
+    const findOption = (value) => {
+      const normalizedValue = normalize(value);
+
+      if (!normalizedValue) {
+        return null;
+      }
+
+      return (
+        options.find((option) => {
+          if (typeof option === "string") {
+            return normalize(option) === normalizedValue;
+          }
+
+          return (
+            normalize(option?.label) === normalizedValue ||
+            normalize(option?.value) === normalizedValue ||
+            normalize(option?.text) === normalizedValue
+          );
+        }) ?? null
+      );
+    };
+
+    const selectedOption = findOption(studentResponse);
+    const correctOption = findOption(correctAnswer);
+
+    const isAnswered = normalize(studentResponse) !== "";
+
+    const getOptionValue = (option) => {
+      if (option === null || option === undefined) {
+        return null;
+      }
+
+      if (typeof option === "object") {
+        return option.value ?? option.label ?? option.text;
+      }
+
+      return option;
+    };
+
+    const selectedValue = getOptionValue(selectedOption);
+    const correctValue = getOptionValue(correctOption);
+
+    const isCorrect =
+      isAnswered &&
+      selectedOption !== null &&
+      correctOption !== null &&
+      normalize(selectedValue) === normalize(correctValue);
+
+    // MCQ scoring.
+    const maximumMarks = 1;
+    const marksAwarded = isCorrect ? 1 : 0;
+
+    mcqResults.set(String(answer._id), {
+      selectedOption,
+      correctOption,
+      selectedValue,
+      correctValue,
+      isAnswered,
+      isCorrect,
+      maximumMarks,
+      marksAwarded,
+    });
+
+    // ==========================================
+    // CREATE EVALUATION ONLY IF NOT AVAILABLE
+    // ==========================================
+
+    const existingEvaluation = evaluationMap.get(String(answer._id));
+
+    if (!existingEvaluation) {
+      bulkOperations.push({
+        updateOne: {
+          filter: {
+            studentAnswer: answer._id,
+          },
+
+          update: {
+            $setOnInsert: {
+              studentAnswer: answer._id,
+              student: answer.student,
+              teacher: attempt.teacher,
+              maximumMarks,
+              marksAwarded,
+              feedback: isCorrect
+                ? "Correct answer."
+                : isAnswered
+                  ? "Incorrect answer."
+                  : "Not answered.",
+
+              evaluationStatus: "EVALUATED",
+              evaluatedAt: new Date(),
+              updatedBy: attempt.teacher,
+            },
+          },
+
+          upsert: true,
+        },
+      });
+    }
+  }
+
+  // ==========================================
+  // EXECUTE BULK INSERT/UPSERT
+  // ==========================================
+
+  if (bulkOperations.length > 0) {
+    await AnswerEvaluation.bulkWrite(bulkOperations, { ordered: false });
+  }
+
+  // ==========================================
+  // FETCH EVALUATIONS AGAIN
+  // ==========================================
+
+  const updatedEvaluations = await AnswerEvaluation.find({
+    studentAnswer: { $in: answerIds },
+  }).lean();
+
+  const updatedEvaluationMap = new Map(
+    updatedEvaluations.map((evaluation) => [
+      String(evaluation.studentAnswer),
+      evaluation,
+    ]),
+  );
+
+  // ==========================================
+  // PREPARE RESPONSE
+  // ==========================================
+
+  const result = answers.map((answer) => {
+    const question =
+      answer.question && typeof answer.question === "object"
+        ? answer.question
+        : null;
+
+    const evaluation = updatedEvaluationMap.get(String(answer._id)) ?? null;
+
+    const mcq = mcqResults.get(String(answer._id));
+
+    if (mcq && question) {
+      return {
+        ...answer,
+
+        question: {
+          ...question,
+          options: question.options ?? [],
+
+          correctAnswer: mcq.correctValue,
+        },
+
+        evaluation,
+
+        mcqEvaluation: {
+          isAnswered: mcq.isAnswered,
+          isCorrect: mcq.isCorrect,
+
+          studentAnswer: mcq.selectedValue,
+          correctAnswer: mcq.correctValue,
+
+          selectedOption: mcq.selectedOption,
+          correctOption: mcq.correctOption,
+
+          marks: mcq.maximumMarks,
+          awardedMarks: mcq.marksAwarded,
+        },
+      };
+    }
+
+    return {
+      ...answer,
+      question,
+      evaluation,
+    };
+  });
+
+  return res.status(200).json(result);
+});
 
 /*
  * Get the answer for one question in an attempt.
  */
-export const getAnswerByAssessmentQuestion =
-  asyncHandler(async (req, res) => {
-    const schoolId = getUserSchool(req);
+export const getAnswerByAssessmentQuestion = asyncHandler(async (req, res) => {
+  const schoolId = getUserSchool(req);
 
-    validateObjectId(
-      req.params.attemptId,
-      "attempt ID",
-    );
+  validateObjectId(req.params.attemptId, "attempt ID");
 
-    validateObjectId(
-      req.params.assessmentQuestionId,
-      "assessment question ID",
-    );
+  validateObjectId(req.params.assessmentQuestionId, "assessment question ID");
 
-    const attempt =
-      await validateAttempt(
-        req.params.attemptId,
-        schoolId,
-      );
+  const attempt = await validateAttempt(req.params.attemptId, schoolId);
 
-    await validateAttemptOwner(
-      attempt,
-      req,
-    );
+  await validateAttemptOwner(attempt, req);
 
-    const assessmentQuestion =
-      await validateAssessmentQuestion(
-        req.params.assessmentQuestionId,
-        attempt,
-      );
+  const assessmentQuestion = await validateAssessmentQuestion(
+    req.params.assessmentQuestionId,
+    attempt,
+  );
 
-    const answer =
-      await populateStudentAnswer(
-        StudentAnswer.findOne({
-          attempt: attempt._id,
-          assessmentQuestion:
-            assessmentQuestion._id,
-        }),
-      );
+  const answer = await populateStudentAnswer(
+    StudentAnswer.findOne({
+      attempt: attempt._id,
+      assessmentQuestion: assessmentQuestion._id,
+    }),
+  );
 
-    if (!answer) {
-      res.status(404);
-      throw new Error(
-        "Student answer not found",
-      );
-    }
+  if (!answer) {
+    res.status(404);
+    throw new Error("Student answer not found");
+  }
 
-    res.json(answer);
-  });
+  res.json(answer);
+});
 
 /*
  * Submit one answer.
  */
-export const submitStudentAnswer =
-  asyncHandler(async (req, res) => {
-    const schoolId = getUserSchool(req);
+export const submitStudentAnswer = asyncHandler(async (req, res) => {
+  const schoolId = getUserSchool(req);
 
-    validateObjectId(
-      req.params.id,
-      "answer ID",
-    );
+  validateObjectId(req.params.id, "answer ID");
 
-    const answer =
-      await StudentAnswer.findById(
-        req.params.id,
-      );
+  const answer = await StudentAnswer.findById(req.params.id);
 
-    if (!answer) {
-      res.status(404);
-      throw new Error(
-        "Student answer not found",
-      );
-    }
+  if (!answer) {
+    res.status(404);
+    throw new Error("Student answer not found");
+  }
 
-    const attempt =
-      await validateAttempt(
-        answer.attempt,
-        schoolId,
-      );
+  const attempt = await validateAttempt(answer.attempt, schoolId);
 
-    await validateAttemptOwner(
-      attempt,
-      req,
-    );
+  await validateAttemptOwner(attempt, req);
 
-    validateAnswerCanBeEdited(attempt);
-    validateAssessmentWindow(attempt);
+  validateAnswerCanBeEdited(attempt);
+  validateAssessmentWindow(attempt);
 
-    await validateExistingAnswerReferences(
-      answer,
-      attempt,
-    );
+  await validateExistingAnswerReferences(answer, attempt);
 
-    if (answer.status === "SUBMITTED") {
-      res.status(400);
-      throw new Error(
-        "This answer has already been submitted",
-      );
-    }
+  if (answer.status === "SUBMITTED") {
+    res.status(400);
+    throw new Error("This answer has already been submitted");
+  }
 
-    const now = new Date();
+  const now = new Date();
 
-    answer.status = "SUBMITTED";
-    answer.submittedAt = now;
-    answer.lastSavedAt = now;
+  answer.status = "SUBMITTED";
+  answer.submittedAt = now;
+  answer.lastSavedAt = now;
 
-    const updatedAnswer =
-      await answer.save();
+  const updatedAnswer = await answer.save();
 
-    await updateAttemptActivity(
-      attempt._id,
-    );
+  await updateAttemptActivity(attempt._id);
 
-    const result =
-      await populateStudentAnswer(
-        StudentAnswer.findById(
-          updatedAnswer._id,
-        ),
-      );
+  const result = await populateStudentAnswer(
+    StudentAnswer.findById(updatedAnswer._id),
+  );
 
-    res.json(await result);
-  });
+  res.json(await result);
+});
 
 /*
  * Submit all saved answers belonging to an attempt.
  */
-export const submitAllStudentAnswers =
-  asyncHandler(async (req, res) => {
-    const schoolId = getUserSchool(req);
+export const submitAllStudentAnswers = asyncHandler(async (req, res) => {
+  const schoolId = getUserSchool(req);
 
-    validateObjectId(
-      req.params.attemptId,
-      "attempt ID",
-    );
+  validateObjectId(req.params.attemptId, "attempt ID");
 
-    const attempt =
-      await validateAttempt(
-        req.params.attemptId,
-        schoolId,
-      );
+  const attempt = await validateAttempt(req.params.attemptId, schoolId);
 
-    await validateAttemptOwner(
-      attempt,
-      req,
-    );
+  await validateAttemptOwner(attempt, req);
 
-    validateAnswerCanBeEdited(attempt);
-    validateAssessmentWindow(attempt);
+  validateAnswerCanBeEdited(attempt);
+  validateAssessmentWindow(attempt);
 
-    const now = new Date();
+  const now = new Date();
 
-    const result =
-      await StudentAnswer.updateMany(
-        {
-          attempt: attempt._id,
-          status: {
-            $in: [
-              "IN_PROGRESS",
-              "SAVED",
-            ],
-          },
-        },
-        {
-          $set: {
-            status: "SUBMITTED",
-            submittedAt: now,
-            lastSavedAt: now,
-          },
-        },
-      );
+  const result = await StudentAnswer.updateMany(
+    {
+      attempt: attempt._id,
+      status: {
+        $in: ["IN_PROGRESS", "SAVED"],
+      },
+    },
+    {
+      $set: {
+        status: "SUBMITTED",
+        submittedAt: now,
+        lastSavedAt: now,
+      },
+    },
+  );
 
-    await updateAttemptActivity(
-      attempt._id,
-    );
+  await updateAttemptActivity(attempt._id);
 
-    const answers =
-      await populateStudentAnswer(
-        StudentAnswer.find({
-          attempt: attempt._id,
-        }).sort({
-          createdAt: 1,
-        }),
-      );
+  const answers = await populateStudentAnswer(
+    StudentAnswer.find({
+      attempt: attempt._id,
+    }).sort({
+      createdAt: 1,
+    }),
+  );
 
-    res.json({
-      message:
-        "Student answers submitted successfully",
-      modifiedCount:
-        result.modifiedCount,
-      answers: await answers,
-    });
+  res.json({
+    message: "Student answers submitted successfully",
+    modifiedCount: result.modifiedCount,
+    answers: await answers,
   });
+});
 
 /*
  * Update an answer.
  */
-export const updateStudentAnswer =
-  asyncHandler(async (req, res) => {
-    const schoolId = getUserSchool(req);
+export const updateStudentAnswer = asyncHandler(async (req, res) => {
+  const schoolId = getUserSchool(req);
 
-    validateObjectId(
-      req.params.id,
-      "answer ID",
-    );
+  validateObjectId(req.params.id, "answer ID");
 
-    const answer =
-      await StudentAnswer.findById(
-        req.params.id,
-      );
+  const answer = await StudentAnswer.findById(req.params.id);
 
-    if (!answer) {
-      res.status(404);
-      throw new Error(
-        "Student answer not found",
-      );
-    }
+  if (!answer) {
+    res.status(404);
+    throw new Error("Student answer not found");
+  }
 
-    const attempt =
-      await validateAttempt(
-        answer.attempt,
-        schoolId,
-      );
+  const attempt = await validateAttempt(answer.attempt, schoolId);
 
-    await validateAttemptOwner(
-      attempt,
-      req,
-    );
+  await validateAttemptOwner(attempt, req);
 
-    validateAnswerCanBeEdited(attempt);
-    validateAssessmentWindow(attempt);
+  validateAnswerCanBeEdited(attempt);
+  validateAssessmentWindow(attempt);
 
-    if (answer.status === "SUBMITTED") {
-      res.status(400);
-      throw new Error(
-        "A submitted answer cannot be modified",
-      );
-    }
+  if (answer.status === "SUBMITTED") {
+    res.status(400);
+    throw new Error("A submitted answer cannot be modified");
+  }
 
-    const assessmentQuestion =
-      await validateExistingAnswerReferences(
-        answer,
-        attempt,
-      );
+  const assessmentQuestion = await validateExistingAnswerReferences(
+    answer,
+    attempt,
+  );
 
-    const question =
-      assessmentQuestion.question;
+  const question = assessmentQuestion.question;
 
-    const answerMode =
-      req.body.answerMode ??
-      answer.answerMode;
+  const answerMode = req.body.answerMode ?? answer.answerMode;
 
-    const answerValue =
-      req.body.answer !== undefined
-        ? req.body.answer
-        : answer.answer;
+  const answerValue =
+    req.body.answer !== undefined ? req.body.answer : answer.answer;
 
-    const selectedOption =
-      req.body.selectedOption !==
-      undefined
-        ? req.body.selectedOption
-        : answer.selectedOption;
+  const selectedOption =
+    req.body.selectedOption !== undefined
+      ? req.body.selectedOption
+      : answer.selectedOption;
 
-    const attachments =
-      req.body.attachments !==
-      undefined
-        ? req.body.attachments
-        : answer.attachments;
+  const attachments =
+    req.body.attachments !== undefined
+      ? req.body.attachments
+      : answer.attachments;
 
-    validateAnswerMode(
-      answerMode,
-      question,
-    );
+  validateAnswerMode(answerMode, question);
 
-    validateMCQAnswer(
-      answerMode,
-      answerValue,
-      selectedOption,
-      question,
-    );
+  validateMCQAnswer(answerMode, answerValue, selectedOption, question);
 
-    validateAnswerValue(
-      answerMode,
-      answerValue,
-    );
+  validateAnswerValue(answerMode, answerValue);
 
-    answer.answerMode = answerMode;
-    answer.answer = answerValue;
-    answer.selectedOption =
-      selectedOption;
-    answer.attachments = attachments;
-    answer.status = "SAVED";
-    answer.lastSavedAt = new Date();
+  answer.answerMode = answerMode;
+  answer.answer = answerValue;
+  answer.selectedOption = selectedOption;
+  answer.attachments = attachments;
+  answer.status = "SAVED";
+  answer.lastSavedAt = new Date();
 
-    if (!answer.startedAt) {
-      answer.startedAt = new Date();
-    }
+  if (!answer.startedAt) {
+    answer.startedAt = new Date();
+  }
 
-    const updatedAnswer =
-      await answer.save();
+  const updatedAnswer = await answer.save();
 
-    await updateAttemptActivity(
-      attempt._id,
-    );
+  await updateAttemptActivity(attempt._id);
 
-    const result =
-      await populateStudentAnswer(
-        StudentAnswer.findById(
-          updatedAnswer._id,
-        ),
-      );
+  const result = await populateStudentAnswer(
+    StudentAnswer.findById(updatedAnswer._id),
+  );
 
-    res.json(await result);
-  });
+  res.json(await result);
+});
 
 /*
  * Change answer status.
  *
  * Intended for school staff/evaluation workflow.
  */
-export const updateStudentAnswerStatus =
-  asyncHandler(async (req, res) => {
-    const schoolId = getUserSchool(req);
+export const updateStudentAnswerStatus = asyncHandler(async (req, res) => {
+  const schoolId = getUserSchool(req);
 
-    validateObjectId(
-      req.params.id,
-      "answer ID",
-    );
+  validateObjectId(req.params.id, "answer ID");
 
-    const { status } = req.body;
+  const { status } = req.body;
 
-    validateAnswerStatus(status);
+  validateAnswerStatus(status);
 
-    const answer =
-      await StudentAnswer.findById(
-        req.params.id,
-      );
+  const answer = await StudentAnswer.findById(req.params.id);
 
-    if (!answer) {
-      res.status(404);
-      throw new Error(
-        "Student answer not found",
-      );
-    }
+  if (!answer) {
+    res.status(404);
+    throw new Error("Student answer not found");
+  }
 
-    const attempt =
-      await validateAttempt(
-        answer.attempt,
-        schoolId,
-      );
+  const attempt = await validateAttempt(answer.attempt, schoolId);
 
-    await validateExistingAnswerReferences(
-      answer,
-      attempt,
-    );
+  await validateExistingAnswerReferences(answer, attempt);
 
-    /*
-     * Students should use the dedicated submit
-     * endpoints rather than arbitrary status changes.
-     */
-    if (req.user.role === "STUDENT") {
-      res.status(403);
-      throw new Error(
-        "Students cannot directly change answer status",
-      );
-    }
+  /*
+   * Students should use the dedicated submit
+   * endpoints rather than arbitrary status changes.
+   */
+  if (req.user.role === "STUDENT") {
+    res.status(403);
+    throw new Error("Students cannot directly change answer status");
+  }
 
-    const now = new Date();
+  const now = new Date();
 
-    answer.status = status;
-    answer.lastSavedAt = now;
+  answer.status = status;
+  answer.lastSavedAt = now;
 
-    if (status === "SUBMITTED") {
-      answer.submittedAt =
-        answer.submittedAt || now;
-    }
+  if (status === "SUBMITTED") {
+    answer.submittedAt = answer.submittedAt || now;
+  }
 
-    const updatedAnswer =
-      await answer.save();
+  const updatedAnswer = await answer.save();
 
-    await updateAttemptActivity(
-      attempt._id,
-    );
+  await updateAttemptActivity(attempt._id);
 
-    const result =
-      await populateStudentAnswer(
-        StudentAnswer.findById(
-          updatedAnswer._id,
-        ),
-      );
+  const result = await populateStudentAnswer(
+    StudentAnswer.findById(updatedAnswer._id),
+  );
 
-    res.json(await result);
-  });
+  res.json(await result);
+});
 
 /*
  * Delete an answer.
  */
-export const deleteStudentAnswer =
-  asyncHandler(async (req, res) => {
-    const schoolId = getUserSchool(req);
+export const deleteStudentAnswer = asyncHandler(async (req, res) => {
+  const schoolId = getUserSchool(req);
 
-    validateObjectId(
-      req.params.id,
-      "answer ID",
-    );
+  validateObjectId(req.params.id, "answer ID");
 
-    const answer =
-      await StudentAnswer.findById(
-        req.params.id,
-      );
+  const answer = await StudentAnswer.findById(req.params.id);
 
-    if (!answer) {
-      res.status(404);
-      throw new Error(
-        "Student answer not found",
-      );
-    }
+  if (!answer) {
+    res.status(404);
+    throw new Error("Student answer not found");
+  }
 
-    const attempt =
-      await validateAttempt(
-        answer.attempt,
-        schoolId,
-      );
+  const attempt = await validateAttempt(answer.attempt, schoolId);
 
-    await validateAttemptOwner(
-      attempt,
-      req,
-    );
+  await validateAttemptOwner(attempt, req);
 
-    if (answer.status === "SUBMITTED") {
-      res.status(400);
-      throw new Error(
-        "A submitted answer cannot be deleted",
-      );
-    }
+  if (answer.status === "SUBMITTED") {
+    res.status(400);
+    throw new Error("A submitted answer cannot be deleted");
+  }
 
-    if (
-      !STUDENT_EDITABLE_ATTEMPT_STATUSES.includes(
-        attempt.status,
-      )
-    ) {
-      res.status(400);
-      throw new Error(
-        "Answer cannot be deleted after the attempt is submitted",
-      );
-    }
+  if (!STUDENT_EDITABLE_ATTEMPT_STATUSES.includes(attempt.status)) {
+    res.status(400);
+    throw new Error("Answer cannot be deleted after the attempt is submitted");
+  }
 
-    await validateExistingAnswerReferences(
-      answer,
-      attempt,
-    );
+  await validateExistingAnswerReferences(answer, attempt);
 
-    await answer.deleteOne();
+  await answer.deleteOne();
 
-    await updateAttemptActivity(
-      attempt._id,
-    );
+  await updateAttemptActivity(attempt._id);
 
-    res.json({
-      message:
-        "Student answer deleted successfully",
-      id: answer._id,
-    });
+  res.json({
+    message: "Student answer deleted successfully",
+    id: answer._id,
   });
+});
 
 /*
  * Get answers belonging to the logged-in student.
  */
-export const getMyStudentAnswers =
-  asyncHandler(async (req, res) => {
-    const student =
-      await getStudentFromUser(req);
+export const getMyStudentAnswers = asyncHandler(async (req, res) => {
+  const student = await getStudentFromUser(req);
 
-    const filter = {
-      student: student._id,
-    };
+  const filter = {
+    student: student._id,
+  };
 
-    if (req.query.attemptId) {
-      validateObjectId(
-        req.query.attemptId,
-        "attempt ID",
-      );
+  if (req.query.attemptId) {
+    validateObjectId(req.query.attemptId, "attempt ID");
 
-      const attempt =
-        await validateAttempt(
-          req.query.attemptId,
-          student.school._id ||
-            student.school,
-        );
+    const attempt = await validateAttempt(
+      req.query.attemptId,
+      student.school._id || student.school,
+    );
 
-      await validateAttemptOwner(
-        attempt,
-        req,
-      );
+    await validateAttemptOwner(attempt, req);
 
-      const attemptStudentId =
-        attempt.student?._id ||
-        attempt.student;
+    const attemptStudentId = attempt.student?._id || attempt.student;
 
-      if (
-        String(attemptStudentId) !==
-        String(student._id)
-      ) {
-        res.status(403);
-        throw new Error(
-          "You are not authorized to access this attempt",
-        );
-      }
-
-      filter.attempt = attempt._id;
+    if (String(attemptStudentId) !== String(student._id)) {
+      res.status(403);
+      throw new Error("You are not authorized to access this attempt");
     }
 
-    if (req.query.status) {
-      validateAnswerStatus(
-        req.query.status,
-      );
+    filter.attempt = attempt._id;
+  }
 
-      filter.status =
-        req.query.status;
-    }
+  if (req.query.status) {
+    validateAnswerStatus(req.query.status);
 
-    const answers =
-      await populateStudentAnswer(
-        StudentAnswer.find(filter).sort({
-          createdAt: 1,
-        }),
-      );
+    filter.status = req.query.status;
+  }
 
-    res.json(await answers);
-  });
+  const answers = await populateStudentAnswer(
+    StudentAnswer.find(filter).sort({
+      createdAt: 1,
+    }),
+  );
+
+  res.json(await answers);
+});

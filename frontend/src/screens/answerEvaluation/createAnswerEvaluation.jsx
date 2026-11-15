@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { toast } from "react-toastify";
@@ -13,16 +14,11 @@ const AnswerEvaluationScreen = () => {
   const [marksAwarded, setMarksAwarded] = useState("");
   const [feedback, setFeedback] = useState("");
 
-  const [
-    createAnswerEvaluation,
-    { isLoading },
-  ] = useCreateAnswerEvaluationMutation();
+  const [createAnswerEvaluation, { isLoading }] =
+    useCreateAnswerEvaluationMutation();
 
-  const student =
-    studentAnswer?.student;
-
-  const assessment =
-    studentAnswer?.attempt?.assessment;
+  const student = studentAnswer?.student;
+  const assessment = studentAnswer?.attempt?.assessment;
 
   const question =
     studentAnswer?.assessmentQuestion?.question ||
@@ -30,18 +26,25 @@ const AnswerEvaluationScreen = () => {
 
   const maximumMarks =
     student?.maximumMarks ||
-    studentAnswer?.assessmentQuestion?.question?.marks ||
-    studentAnswer?.question?.marks ||
+    question?.marks ||
     studentAnswer?.assessmentQuestion?.section?.marksPerQuestion ||
     0;
 
-  const studentName =
-    student?.user?.name ||
-    "Unknown Student";
+  const studentName = student?.user?.name || "Unknown Student";
 
   const questionText =
-    question?.questionText ||
-    "Question not available";
+    question?.questionText || "Question not available";
+
+  const questionType = (
+    question?.questionType ||
+    question?.type ||
+    ""
+  ).toUpperCase();
+
+  const isMCQ = [
+    "MCQ",
+    "MULTIPLE_CHOICE",
+  ].includes(questionType);
 
   const studentAnswerText =
     studentAnswer?.answerText ||
@@ -58,25 +61,19 @@ const AnswerEvaluationScreen = () => {
       return;
     }
 
-    if (
-      marksAwarded === "" ||
-      marksAwarded === null
-    ) {
+    if (marksAwarded === "") {
       toast.error("Please enter marks awarded");
       return;
     }
 
-    const numericMarks =
-      Number(marksAwarded);
+    const numericMarks = Number(marksAwarded);
 
     if (
       Number.isNaN(numericMarks) ||
       numericMarks < 0 ||
       numericMarks > maximumMarks
     ) {
-      toast.error(
-        `Marks must be between 0 and ${maximumMarks}`,
-      );
+      toast.error(`Marks must be between 0 and ${maximumMarks}`);
       return;
     }
 
@@ -87,228 +84,242 @@ const AnswerEvaluationScreen = () => {
         feedback: feedback.trim(),
       }).unwrap();
 
-      toast.success(
-        "Answer evaluated successfully",
-      );
-
+      toast.success("Answer evaluated successfully");
       navigate(-1);
     } catch (err) {
       toast.error(
         err?.data?.message ||
-          err?.error ||
-          "Unable to evaluate answer",
+        err?.error ||
+        "Unable to evaluate answer"
       );
     }
   };
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500 px-4 py-8 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-5xl">
-        <div className="mb-6 rounded-2xl border border-white/20 bg-white/10 px-5 py-6 shadow-2xl backdrop-blur-xl sm:px-8">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-white sm:text-3xl">
-                Evaluate Student Answer
-              </h1>
+  if (!studentAnswer) {
+    return (
+      <div className="flex min-h-[400px] items-center justify-center bg-gray-100 p-4">
+        <div className="rounded-lg bg-white p-6 text-center shadow">
+          <h2 className="font-semibold text-red-600">
+            Student answer not available
+          </h2>
 
-              <p className="mt-1 text-sm text-white/70 sm:text-base">
-                Review the answer and award marks
-              </p>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => navigate(-1)}
-              className="rounded-xl border border-white/30 bg-white/10 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/20 active:scale-[0.98]"
-            >
-              Back
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            className="mt-4 rounded bg-indigo-600 px-5 py-2 text-white"
+          >
+            Back to Evaluations
+          </button>
         </div>
+      </div>
+    );
+  }
 
-        {!studentAnswer && (
-          <div className="rounded-2xl border border-red-300/30 bg-red-500/20 p-6 text-center shadow-2xl backdrop-blur-xl">
-            <h2 className="text-lg font-semibold text-white">
-              Student answer not available
-            </h2>
+  return (
+    // IMPORTANT:
+    // 120px is reserved for the existing application header/navigation.
+    // Adjust this value if your application header has a different height.
+    <div className="h-[calc(100dvh-120px)] min-h-0 overflow-hidden bg-slate-100 p-2">
 
-            <p className="mt-2 text-sm text-white/70">
-              Please return to the pending evaluation list
-              and select the answer again.
-            </p>
+      <div className="mx-auto flex h-full min-h-0 max-w-[1800px] flex-col">
 
-            <button
-              type="button"
-              onClick={() => navigate(-1)}
-              className="mt-5 rounded-xl bg-gradient-to-r from-cyan-500 via-sky-600 to-blue-700 px-6 py-3 font-semibold text-white shadow-lg transition hover:from-indigo-600 hover:via-purple-600 hover:to-pink-600"
-            >
-              Back to Evaluations
-            </button>
+        {/* COMPACT STUDENT INFORMATION */}
+        <header className="mb-2 flex shrink-0 items-center justify-between gap-2 rounded-lg border bg-white px-3 py-2 shadow-sm">
+
+          <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1 text-xs">
+
+            <span className="font-bold text-indigo-700">
+              Evaluate
+            </span>
+
+            <span className="text-gray-700">
+              <b>Student:</b> {studentName}
+            </span>
+
+            <span className="text-gray-700">
+              <b>Assessment:</b> {assessment?.title || "Assessment"}
+            </span>
+
+            <span className="text-gray-700">
+              <b>Subject:</b> {assessment?.subject?.name || "Subject"}
+            </span>
+
+            <span className="rounded bg-indigo-50 px-2 py-1 font-bold text-indigo-700">
+              {maximumMarks} Marks
+            </span>
+
           </div>
-        )}
 
-        {studentAnswer && (
-          <div className="grid gap-6 lg:grid-cols-3">
-            <div className="space-y-6 lg:col-span-2">
-              <div className="rounded-2xl border border-white/20 bg-white/10 p-5 shadow-2xl backdrop-blur-xl sm:p-6">
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-                    <p className="text-xs font-medium uppercase tracking-wide text-indigo-100/70">
-                      Student
-                    </p>
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            className="shrink-0 rounded border px-3 py-1.5 text-xs hover:bg-gray-100"
+          >
+            Back
+          </button>
 
-                    <p className="mt-1 text-base font-semibold text-white">
-                      {studentName}
-                    </p>
+        </header>
 
-                    {student?.admissionNumber && (
-                      <p className="mt-1 text-xs text-white/50">
-                        Admission No:{" "}
-                        {student.admissionNumber}
-                      </p>
-                    )}
-                  </div>
+        {/* THREE COLUMN WORKSPACE */}
+        <main className="grid min-h-0 flex-1 grid-cols-1 gap-2 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.2fr)_minmax(260px,0.8fr)]">
 
-                  <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-                    <p className="text-xs font-medium uppercase tracking-wide text-indigo-100/70">
-                      Assessment
-                    </p>
+          {/* QUESTION PANEL */}
+          <section className="flex min-h-0 flex-col overflow-hidden rounded-lg border bg-white">
 
-                    <p className="mt-1 text-base font-semibold text-white">
-                      {assessment?.title ||
-                        "Assessment"}
-                    </p>
-                  </div>
+            <div className="flex shrink-0 items-center justify-between border-b bg-indigo-50 px-3 py-2">
 
-                  <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-                    <p className="text-xs font-medium uppercase tracking-wide text-indigo-100/70">
-                      Subject
-                    </p>
+              <h2 className="text-sm font-bold text-indigo-800">
+                Question
+              </h2>
 
-                    <p className="mt-1 text-base font-semibold text-white">
-                      {assessment?.subject?.name ||
-                        "Subject"}
-                    </p>
-                  </div>
+              <span className="text-xs text-indigo-600">
+                {questionType}
+              </span>
 
-                  <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-                    <p className="text-xs font-medium uppercase tracking-wide text-indigo-100/70">
-                      Maximum Marks
-                    </p>
-
-                    <p className="mt-1 text-2xl font-bold text-white">
-                      {maximumMarks}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-white/20 bg-white/10 p-5 shadow-2xl backdrop-blur-xl sm:p-6">
-                <div className="mb-5">
-                  <span className="rounded-full bg-cyan-400/20 px-3 py-1 text-xs font-semibold text-cyan-100">
-                    Question
-                  </span>
-
-                  <h2 className="mt-4 text-lg font-semibold leading-7 text-white sm:text-xl">
-                    {questionText}
-                  </h2>
-                </div>
-
-                <div className="rounded-xl border border-white/10 bg-white/5 p-5">
-                  <p className="mb-3 text-xs font-medium uppercase tracking-wide text-indigo-100/70">
-                    Student Answer
-                  </p>
-
-                  <div className="min-h-32 whitespace-pre-wrap text-sm leading-7 text-white/90">
-                    {studentAnswerText ||
-                      "No answer text available."}
-                  </div>
-                </div>
-              </div>
             </div>
 
-            <div className="lg:col-span-1">
-              <form
-                onSubmit={submitHandler}
-                className="sticky top-6 rounded-2xl border border-white/20 bg-white/10 p-5 shadow-2xl backdrop-blur-xl sm:p-6"
-              >
-                <div className="mb-6">
-                  <h2 className="text-xl font-bold text-white">
-                    Evaluation
-                  </h2>
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-3">
 
-                  <p className="mt-1 text-sm text-white/60">
-                    Award marks based on the student's
-                    answer.
+              <div className="whitespace-pre-wrap break-words text-sm leading-6 text-gray-800">
+                {questionText}
+              </div>
+
+            </div>
+
+            <div className="shrink-0 border-t px-3 py-2 text-xs text-gray-500">
+              Maximum Marks: <b>{maximumMarks}</b>
+            </div>
+
+          </section>
+
+          {/* STUDENT ANSWER / AUTOMATED EVALUATION */}
+          <section className="flex min-h-0 flex-col overflow-hidden rounded-lg border bg-white">
+
+            <div className="shrink-0 border-b bg-gray-50 px-3 py-2">
+
+              <h2 className="text-sm font-bold text-gray-800">
+                {isMCQ ? "Automated Evaluation" : "Student Answer"}
+              </h2>
+
+            </div>
+
+            {isMCQ ? (
+
+              <div className="flex min-h-0 flex-1 items-center justify-center p-3">
+
+                <div className="text-center">
+                  <div className="mb-2 text-3xl text-green-600">
+                    ✓
+                  </div>
+
+                  <p className="text-sm font-semibold text-green-700">
+                    Automatically Evaluated
+                  </p>
+
+                  <p className="mt-1 text-xs text-gray-500">
+                    No manual answer evaluation required.
                   </p>
                 </div>
 
-                <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-                  <label className="text-sm font-medium text-indigo-100">
-                    Marks Awarded
-                  </label>
+              </div>
 
-                  <div className="mt-2 flex items-center gap-3">
-                    <input
-                      type="number"
-                      min="0"
-                      max={maximumMarks}
-                      step="0.5"
-                      value={marksAwarded}
-                      onChange={(e) =>
-                        setMarksAwarded(
-                          e.target.value,
-                        )
-                      }
-                      placeholder="0"
-                      className="h-12 w-full rounded-lg bg-white px-4 text-lg font-semibold text-gray-800 placeholder-gray-400 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-400"
-                    />
+            ) : (
 
-                    <span className="text-lg font-semibold text-white/70">
-                      / {maximumMarks}
-                    </span>
-                  </div>
+              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-3">
+
+                <div className="whitespace-pre-wrap break-words rounded-md bg-gray-50 p-3 text-sm leading-6 text-gray-800">
+                  {studentAnswerText || "No answer text available."}
                 </div>
 
-                <div className="mt-5 rounded-xl border border-white/10 bg-white/5 p-4">
-                  <label className="text-sm font-medium text-indigo-100">
-                    Feedback
-                  </label>
+              </div>
 
-                  <textarea
-                    value={feedback}
-                    onChange={(e) =>
-                      setFeedback(e.target.value)
-                    }
-                    maxLength={2000}
-                    rows={7}
-                    placeholder="Enter optional feedback for the student..."
-                    className="mt-2 w-full resize-none rounded-lg bg-white px-4 py-3 text-sm leading-6 text-gray-800 placeholder-gray-400 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-400"
+            )}
+
+          </section>
+
+          {/* EVALUATION PANEL */}
+          <section className="flex min-h-0 flex-col overflow-hidden rounded-lg border bg-white">
+
+            <div className="shrink-0 border-b bg-indigo-50 px-3 py-2">
+              <h2 className="text-sm font-bold text-indigo-800">
+                Teacher Evaluation
+              </h2>
+            </div>
+
+            <form
+              onSubmit={submitHandler}
+              className="flex min-h-0 flex-1 flex-col overflow-hidden p-3"
+            >
+
+              {/* MARKS */}
+              <div className="mb-3 shrink-0">
+
+                <label className="mb-1 block text-xs font-semibold text-gray-700">
+                  Marks Awarded
+                </label>
+
+                <div className="flex items-center gap-2">
+
+                  <input
+                    type="number"
+                    min="0"
+                    max={maximumMarks}
+                    step="0.5"
+                    required
+                    value={marksAwarded}
+                    onChange={(e) => setMarksAwarded(e.target.value)}
+                    placeholder="Marks"
+                    className="h-10 min-w-0 flex-1 rounded border border-gray-300 px-3 text-base font-bold outline-none focus:border-indigo-500"
                   />
 
-                  <div className="mt-2 text-right text-xs text-white/50">
-                    {feedback.length}/2000
-                  </div>
+                  <span className="text-sm font-semibold text-gray-500">
+                    / {maximumMarks}
+                  </span>
+
                 </div>
+
+              </div>
+
+              {/* FEEDBACK */}
+              <div className="mb-3 flex min-h-0 flex-1 flex-col">
+
+                <label className="mb-1 shrink-0 text-xs font-semibold text-gray-700">
+                  Feedback (Optional)
+                </label>
+
+                <textarea
+                  value={feedback}
+                  onChange={(e) => setFeedback(e.target.value)}
+                  maxLength={2000}
+                  placeholder="Enter feedback..."
+                  className="min-h-20 w-full flex-1 resize-none rounded border border-gray-300 p-2 text-sm outline-none focus:border-indigo-500"
+                />
+
+                <div className="mt-1 shrink-0 text-right text-xs text-gray-400">
+                  {feedback.length}/2000
+                </div>
+
+              </div>
+
+              {/* FIXED SUBMIT AREA */}
+              <div className="shrink-0 border-t pt-2">
 
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="mt-6 flex h-12 w-full items-center justify-center rounded-xl bg-gradient-to-r from-cyan-500 via-sky-600 to-blue-700 font-semibold text-white shadow-lg transition-all duration-200 hover:from-indigo-600 hover:via-purple-600 hover:to-pink-600 hover:shadow-xl active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+                  className="h-10 w-full rounded bg-indigo-600 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
                 >
-                  {isLoading
-                    ? "Submitting Evaluation..."
-                    : "Submit Evaluation"}
+                  {isLoading ? "Submitting..." : "Submit Evaluation"}
                 </button>
 
-                <p className="mt-4 text-center text-xs leading-5 text-white/50">
-                  Once submitted, this answer will be
-                  marked as evaluated.
-                </p>
-              </form>
-            </div>
-          </div>
-        )}
+              </div>
+
+            </form>
+
+          </section>
+
+        </main>
+
       </div>
     </div>
   );

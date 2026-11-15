@@ -10,6 +10,7 @@ export const ASSESSMENT_URL = '/api/assessment';
 export const ASSESSMENT_QUESTION_URL = '/api/assessment-quetions';
 export const ASSESSMENT_CHOICE_GROUP_URL = '/api/assessment-choice-groups';
 export const ASESSMENT_SECTION_URL = "/api/answer-section";
+export const DASHBOARD_URL = "/api/dashboard";
 export const AUDITLOG_URL = "/api/auditlog";
 
 

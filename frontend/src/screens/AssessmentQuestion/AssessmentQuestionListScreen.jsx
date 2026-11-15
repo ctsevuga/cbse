@@ -1,20 +1,14 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { toast } from "react-toastify";
-import {
-  useGetAssessmentQuestionsQuery,
-  
-} from "../../slices/assessmentQuestionApiSlice";
+import { useGetAssessmentQuestionsQuery } from "../../slices/assessmentQuestionApiSlice";
 import { useGetAssessmentsQuery } from "../../slices/assessmentApiSlice";
-import { useGetSectionsQuery } from "../../slices/sectionApiSlice";
-import { useGetAssessmentChoiceGroupsQuery } from "../../slices/assessmentChoiceGroupApiSlice";
+
 
 const AssessmentQuestionListScreen = () => {
   const navigate = useNavigate();
 
   const [assessment, setAssessment] = useState("");
-  const [section, setSection] = useState("");
-  const [questionGroup, setQuestionGroup] = useState("");
+  
   const [showFilters, setShowFilters] = useState(true);
 
   const {
@@ -22,36 +16,17 @@ const AssessmentQuestionListScreen = () => {
     isLoading: isAssessmentsLoading,
   } = useGetAssessmentsQuery();
 
-  const {
-    data: sectionsData,
-    isLoading: isSectionsLoading,
-  } = useGetSectionsQuery(
-    assessment ? { assessment } : {},
-  );
+  
 
   const {
-    data: choiceGroupsData,
-    isLoading: isChoiceGroupsLoading,
-  } = useGetAssessmentChoiceGroupsQuery(
-    assessment
-      ? {
-          assessment,
-          isActive: true,
-        }
-      : {},
-  );
-
-  const {
-    data: assessmentQuestionsData,
-    isLoading,
-    isFetching,
-    error,
-    refetch,
-  } = useGetAssessmentQuestionsQuery({
-    ...(assessment && { assessment }),
-    ...(section && { section }),
-    ...(questionGroup && { questionGroup }),
-  });
+  data: assessmentQuestionsData,
+  isLoading,
+  isFetching,
+  error,
+  refetch,
+} = useGetAssessmentQuestionsQuery({
+  ...(assessment && { assessment }),
+});
 
   
 
@@ -67,29 +42,7 @@ const AssessmentQuestionListScreen = () => {
     );
   }, [assessmentsData]);
 
-  const sections = useMemo(() => {
-    if (Array.isArray(sectionsData)) {
-      return sectionsData;
-    }
-
-    return (
-      sectionsData?.sections ||
-      sectionsData?.data ||
-      []
-    );
-  }, [sectionsData]);
-
-  const choiceGroups = useMemo(() => {
-    if (Array.isArray(choiceGroupsData)) {
-      return choiceGroupsData;
-    }
-
-    return (
-      choiceGroupsData?.choiceGroups ||
-      choiceGroupsData?.data ||
-      []
-    );
-  }, [choiceGroupsData]);
+  
 
   const assessmentQuestions = useMemo(() => {
     if (Array.isArray(assessmentQuestionsData)) {
@@ -103,37 +56,7 @@ const AssessmentQuestionListScreen = () => {
     );
   }, [assessmentQuestionsData]);
 
-  useEffect(() => {
-    if (!assessment) {
-      setSection("");
-      setQuestionGroup("");
-      return;
-    }
-
-    const sectionExists = sections.some(
-      (item) =>
-        String(item._id) === String(section),
-    );
-
-    if (section && !sectionExists) {
-      setSection("");
-    }
-
-    const choiceGroupExists = choiceGroups.some(
-      (item) =>
-        String(item._id) === String(questionGroup),
-    );
-
-    if (questionGroup && !choiceGroupExists) {
-      setQuestionGroup("");
-    }
-  }, [
-    assessment,
-    sections,
-    choiceGroups,
-    section,
-    questionGroup,
-  ]);
+  
 
   const getAssessmentName = (item) => {
     if (!item?.assessment) {
@@ -222,24 +145,7 @@ const AssessmentQuestionListScreen = () => {
     return "Choice group";
   };
 
-  const handleAssessmentChange = (e) => {
-    setAssessment(e.target.value);
-    setSection("");
-    setQuestionGroup("");
-  };
-
-  
-
-  const clearFilters = () => {
-    setAssessment("");
-    setSection("");
-    setQuestionGroup("");
-  };
-
-  const hasFilters =
-    Boolean(assessment) ||
-    Boolean(section) ||
-    Boolean(questionGroup);
+  const hasFilters = Boolean(assessment);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500 px-4 py-6 sm:px-6 lg:px-8">
@@ -262,16 +168,7 @@ const AssessmentQuestionListScreen = () => {
                 </p>
               </div>
 
-              <button
-                type="button"
-                onClick={() =>
-                  navigate("/assessment-questions/create")
-                }
-                className="inline-flex h-12 items-center justify-center rounded-xl bg-gradient-to-r from-cyan-500 via-sky-600 to-blue-700 px-5 font-semibold text-white shadow-lg transition hover:from-indigo-600 hover:via-purple-600 hover:to-pink-600 hover:shadow-xl active:scale-[0.98]"
-              >
-                <span className="mr-2 text-xl">+</span>
-                Add Question
-              </button>
+              
             </div>
           </div>
 
@@ -283,23 +180,12 @@ const AssessmentQuestionListScreen = () => {
                     Filter Questions
                   </h2>
                   <p className="text-sm text-white/60">
-                    Narrow the list using assessment,
-                    section, or question group.
-                  </p>
+  Narrow the list using an assessment.
+</p>
                 </div>
 
                 <div className="flex gap-2">
-                  {hasFilters && (
-                    <button
-                      type="button"
-                      onClick={clearFilters}
-                      className="rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm font-medium text-white transition hover:bg-white/20"
-                    >
-                      Clear Filters
-                    </button>
-                  )}
-
-                  <button
+<button
                     type="button"
                     onClick={() =>
                       setShowFilters((prev) => !prev)
@@ -314,7 +200,7 @@ const AssessmentQuestionListScreen = () => {
               </div>
 
               {showFilters && (
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                <div className="grid grid-cols-1 gap-4">
                   <div className="flex flex-col gap-2">
                     <label className="text-sm font-medium text-indigo-100">
                       Assessment
@@ -322,7 +208,7 @@ const AssessmentQuestionListScreen = () => {
 
                     <select
                       value={assessment}
-                      onChange={handleAssessmentChange}
+                      onChange={(e) => setAssessment(e.target.value)}
                       disabled={isAssessmentsLoading}
                       className="h-12 w-full rounded-xl border border-white/20 bg-white px-4 text-gray-800 outline-none transition focus:border-cyan-400 focus:ring-2 focus:ring-cyan-300 disabled:cursor-not-allowed disabled:bg-gray-200"
                     >
@@ -345,85 +231,7 @@ const AssessmentQuestionListScreen = () => {
                       ))}
                     </select>
                   </div>
-
-                  <div className="flex flex-col gap-2">
-                    <label className="text-sm font-medium text-indigo-100">
-                      Section
-                    </label>
-
-                    <select
-                      value={section}
-                      onChange={(e) =>
-                        setSection(e.target.value)
-                      }
-                      disabled={
-                        !assessment ||
-                        isSectionsLoading
-                      }
-                      className="h-12 w-full rounded-xl border border-white/20 bg-white px-4 text-gray-800 outline-none transition focus:border-cyan-400 focus:ring-2 focus:ring-cyan-300 disabled:cursor-not-allowed disabled:bg-gray-200"
-                    >
-                      <option value="">
-                        {!assessment
-                          ? "Select an assessment first"
-                          : isSectionsLoading
-                            ? "Loading sections..."
-                            : "All sections"}
-                      </option>
-
-                      {sections.map((item) => (
-                        <option
-                          key={item._id}
-                          value={item._id}
-                        >
-                          {item.name ||
-                            item.title ||
-                            item.code ||
-                            "Untitled Section"}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="flex flex-col gap-2">
-                    <label className="text-sm font-medium text-indigo-100">
-                      Question Group
-                    </label>
-
-                    <select
-                      value={questionGroup}
-                      onChange={(e) =>
-                        setQuestionGroup(
-                          e.target.value,
-                        )
-                      }
-                      disabled={
-                        !assessment ||
-                        isChoiceGroupsLoading
-                      }
-                      className="h-12 w-full rounded-xl border border-white/20 bg-white px-4 text-gray-800 outline-none transition focus:border-cyan-400 focus:ring-2 focus:ring-cyan-300 disabled:cursor-not-allowed disabled:bg-gray-200"
-                    >
-                      <option value="">
-                        {!assessment
-                          ? "Select an assessment first"
-                          : isChoiceGroupsLoading
-                            ? "Loading groups..."
-                            : "All question groups"}
-                      </option>
-
-                      {choiceGroups.map((item) => (
-                        <option
-                          key={item._id}
-                          value={item._id}
-                        >
-                          {item.name ||
-                            item.title ||
-                            item.code ||
-                            "Untitled Group"}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
+</div>
               )}
             </div>
           </div>
@@ -482,15 +290,7 @@ const AssessmentQuestionListScreen = () => {
                     : "No questions have been assigned to an assessment yet."}
                 </p>
 
-                <button
-                  type="button"
-                  onClick={() =>
-                    navigate("/assessment-questions/create")
-                  }
-                  className="mt-5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-700 px-5 py-3 font-semibold text-white shadow-lg transition hover:from-indigo-600 hover:to-purple-600"
-                >
-                  Add Assessment Question
-                </button>
+                
               </div>
             ) : (
               <>

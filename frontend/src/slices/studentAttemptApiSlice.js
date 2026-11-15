@@ -83,6 +83,63 @@ export const studentAttemptApiSlice =
         keepUnusedDataFor: 5,
       }),
 
+
+/* ==========================================================
+   Get My Children's Assessment Attempts
+
+   GET /api/student-attempts/my-children
+
+   PARENT ONLY.
+
+   Returns assessment attempts belonging to all active
+   children linked to the logged-in parent.
+
+   Optional query parameters:
+   - slug
+   - studentId
+   - assessmentId
+   - status
+========================================================== */
+
+getMyChildrenAttempts: builder.query({
+  query: ({
+    slug,
+    studentId,
+    assessmentId,
+    status,
+  } = {}) => ({
+    url: `${STUDENT_ATTEMPT_URL}/my-children`,
+    params: {
+      slug,
+      ...(studentId && { studentId }),
+      ...(assessmentId && { assessmentId }),
+      ...(status && { status }),
+    },
+  }),
+
+  providesTags: (result) =>
+    result
+      ? [
+          ...result.map((attempt) => ({
+            type: "StudentAttempt",
+            id: attempt._id,
+          })),
+          {
+            type: "StudentAttempt",
+            id: "MY_CHILDREN_LIST",
+          },
+        ]
+      : [
+          {
+            type: "StudentAttempt",
+            id: "MY_CHILDREN_LIST",
+          },
+        ],
+
+  keepUnusedDataFor: 5,
+}),
+
+
       /* ==========================================================
          Get Attempts By Assessment
          GET /api/student-attempts/assessment/:assessmentId
@@ -175,6 +232,49 @@ export const studentAttemptApiSlice =
               ],
         keepUnusedDataFor: 5,
       }),
+
+      /* ==========================================================
+   Get Teacher Student Assessment Attempts
+
+   GET /api/student-attempts/teacher/student/:studentId
+
+   Access:
+   - CLASS_TEACHER
+   - SUBJECT_TEACHER
+
+   Returns all assessment attempts for the selected student,
+   across all subjects.
+
+   Optional query parameters:
+   - status
+========================================================== */
+getTeacherStudentAttempts: builder.query({
+  query: ({ studentId, ...params }) => ({
+    url: `${STUDENT_ATTEMPT_URL}/teacher/student/${studentId}`,
+    params,
+  }),
+
+  providesTags: (result, error, { studentId }) =>
+    result
+      ? [
+          ...result.map((attempt) => ({
+            type: "StudentAttempt",
+            id: attempt._id,
+          })),
+          {
+            type: "StudentAttempt",
+            id: `TEACHER-STUDENT-${studentId}`,
+          },
+        ]
+      : [
+          {
+            type: "StudentAttempt",
+            id: `TEACHER-STUDENT-${studentId}`,
+          },
+        ],
+
+  keepUnusedDataFor: 5,
+}),
 
       /* ==========================================================
          Get All Student Attempts
@@ -450,8 +550,10 @@ submitStudentAttempt: builder.mutation({
 export const {
   useStartStudentAttemptMutation,
   useGetMyStudentAttemptsQuery,
+  useGetMyChildrenAttemptsQuery, // New parent hook
   useGetAttemptsByAssessmentQuery,
   useGetAttemptsByStudentQuery,
+  useGetTeacherStudentAttemptsQuery,
   useGetStudentAttemptsQuery,
   useGetStudentAttemptDetailsQuery,
   useUpdateStudentAttemptActivityMutation,

@@ -6,7 +6,7 @@ const Footer = () => {
       <div className="max-w-7xl mx-auto px-4 py-4">
         <div className="text-center text-gray-600 text-sm">
           <p>
-            ProShop &copy; {currentYear}
+            EDUVISTA &copy; {currentYear}
           </p>
         </div>
       </div>

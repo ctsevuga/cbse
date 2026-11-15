@@ -145,6 +145,11 @@ const protect = asyncHandler(async (req, res, next) => {
  */
 const allowRole = (...roles) => {
   return (req, res, next) => {
+    console.log("ROLE CHECK:", {
+  url: req.originalUrl,
+  role: req.user?.role,
+  allowedRoles: roles,
+});
     if (!req.user) {
       res.status(401);
       throw new Error("Not authenticated");

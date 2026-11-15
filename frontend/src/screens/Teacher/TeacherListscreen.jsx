@@ -34,6 +34,10 @@ const TeacherListScreen = () => {
   const isSuperAdmin =
     userInfo?.role === "SUPER_ADMIN";
 
+    const canManageTeachers = ["SCHOOL_ADMIN", "HM"].includes(
+  userInfo?.role
+);
+
   // --------------------------------------------------
   // Filters
   // --------------------------------------------------
@@ -358,33 +362,31 @@ const TeacherListScreen = () => {
 
             </div>
 
-            <button
-              type="button"
-              onClick={() =>
-                navigate(
-                  TEACHER_CREATE_ROUTE,
-                )
-              }
-              className="w-full lg:w-auto h-11 sm:h-12 px-5 rounded-xl font-semibold text-white bg-gradient-to-r from-cyan-500 via-sky-600 to-blue-700 hover:from-indigo-600 hover:via-purple-600 hover:to-pink-600 shadow-lg hover:shadow-xl transition-all duration-200 active:scale-[0.98] flex items-center justify-center gap-2"
-            >
+            {canManageTeachers && (
+  <button
+    type="button"
+    onClick={() =>
+      navigate(TEACHER_CREATE_ROUTE)
+    }
+    className="w-full lg:w-auto h-11 sm:h-12 px-5 rounded-xl font-semibold text-white bg-gradient-to-r from-cyan-500 via-sky-600 to-blue-700 hover:from-indigo-600 hover:via-purple-600 hover:to-pink-600 shadow-lg hover:shadow-xl transition-all duration-200 active:scale-[0.98] flex items-center justify-center gap-2"
+  >
+    <svg
+      className="w-5 h-5"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M12 4v16m8-8H4"
+      />
+    </svg>
 
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 4v16m8-8H4"
-                />
-              </svg>
-
-              Add Teacher
-
-            </button>
+    Add Teacher
+  </button>
+)}
 
           </div>
 
@@ -742,8 +744,9 @@ const TeacherListScreen = () => {
                   : "There are no teachers matching the selected filters."}
               </p>
 
-              {!search &&
-                !employeeCode && (
+              {canManageTeachers &&
+  !search &&
+  !employeeCode && (
                   <button
                     type="button"
                     onClick={() =>

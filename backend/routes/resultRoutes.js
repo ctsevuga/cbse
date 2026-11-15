@@ -5,6 +5,7 @@ import {
   getResults,
   getResultById,
   getResultByAssessmentAndStudent,
+  getChildResultByAssessment,
   getResultByAttempt,
   getResultsByStudent,
   getResultsByAssessment,
@@ -20,6 +21,7 @@ import {
   teacherOrHmOrAdmin,
   hmOrAdmin,
 } from "../middleware/authMiddleware.js";
+import resolveSchool from "../middleware/resolveSchool.js";
 
 const router = express.Router();
 
@@ -77,6 +79,36 @@ router.get(
   getResultByAssessmentAndStudent,
 );
 
+
+/*
+==========================================================
+PARENT - CHILD RESULT BY ASSESSMENT
+==========================================================
+
+GET /parent/assessment/:assessmentId/student/:studentId
+
+Access:
+    PARENT
+
+Security:
+    - Parent is identified using req.user._id.
+    - Validates the Parent profile.
+    - Validates active StudentParent relationship.
+    - Validates student and assessment school.
+    - Returns PUBLISHED results only.
+
+A parent can access only their own children's results.
+==========================================================
+*/
+
+router.get(
+  "/parent/assessment/:assessmentId/student/:studentId",
+  protect,
+  resolveSchool,
+  getChildResultByAssessment,
+);
+
+
 /*
 ==========================================================
 RESULTS BY ASSESSMENT
@@ -95,6 +127,7 @@ Optional query:
 router.get(
   "/assessment/:assessmentId",
   protect,
+  resolveSchool,
   getResultsByAssessment,
 );
 
@@ -232,7 +265,7 @@ The controller:
 router.patch(
   "/:id/publish",
   protect,
-  hmOrAdmin,
+  teacherOrHmOrAdmin,
   publishResult,
 );
 

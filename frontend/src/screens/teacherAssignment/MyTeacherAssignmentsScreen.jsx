@@ -21,22 +21,23 @@ import {
 const MyTeacherAssignmentsScreen = () => {
   const navigate = useNavigate();
   const { userInfo } = useSelector((state) => state.auth);
+   const [searchTerm, setSearchTerm] = useState("");
+
 
 const schoolSlug =
   userInfo?.school?.slug ||
+  userInfo?.schoolSlug ||
   userInfo?.slug ||
   "";
 
-  const [searchTerm, setSearchTerm] = useState("");
-
-  const {
+const {
   data: assignments = [],
   isLoading,
   isFetching,
   error,
   refetch,
 } = useGetMyTeacherAssignmentsQuery(
-  { schoolSlug },
+  schoolSlug,
   {
     skip: !schoolSlug,
   },

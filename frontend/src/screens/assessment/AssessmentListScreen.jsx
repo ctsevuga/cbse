@@ -5,7 +5,6 @@ import {
   PencilSquareIcon,
   TrashIcon,
   FunnelIcon,
-  PlusIcon,
   MagnifyingGlassIcon,
   XMarkIcon,
 } from "@heroicons/react/24/outline";
@@ -251,13 +250,7 @@ const AssessmentListScreen = () => {
             </p>
           </div>
 
-          <Link
-            to="/assessments/create"
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-          >
-            <PlusIcon className="h-5 w-5" />
-            Create Assessment
-          </Link>
+          
         </div>
 
         <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -518,13 +511,7 @@ const AssessmentListScreen = () => {
                 Try changing your filters or create a new assessment.
               </p>
 
-              <Link
-                to="/assessments/create"
-                className="mt-5 inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-700"
-              >
-                <PlusIcon className="h-5 w-5" />
-                Create Assessment
-              </Link>
+             
             </div>
           ) : (
             <div className="overflow-x-auto">

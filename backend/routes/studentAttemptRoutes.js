@@ -6,7 +6,9 @@ import {
   getStudentAttemptById,
   getAttemptsByAssessment,
   getAttemptsByStudent,
+  getTeacherStudentAttempts,
   getMyStudentAttempts,
+  getMyChildrenAttempts, // New parent controller
   updateStudentAttemptActivity,
   submitStudentAttempt,
   updateStudentAttemptStatus,
@@ -17,6 +19,7 @@ import {
 import {
   protect,
   studentOnly,
+  parent,
   hmOrAdmin,
   teacherOrHmOrAdmin,
 } from "../middleware/authMiddleware.js";
@@ -50,6 +53,25 @@ router.get(
   protect,
   studentOnly,
   getMyStudentAttempts,
+);
+
+/*
+ * Get assessment attempts belonging to all children
+ * linked to the logged-in parent.
+ *
+ * PARENT:
+ *   Returns attempts for all active linked children.
+ *
+ * Optional query parameters:
+ *   studentId    - Filter by a particular child.
+ *   assessmentId - Filter by assessment.
+ *   status       - Filter by attempt status.
+ */
+router.get(
+  "/my-children",
+  protect,
+  parent,
+  getMyChildrenAttempts,
 );
 
 /*
@@ -112,6 +134,23 @@ router.get(
   protect,
   teacherOrHmOrAdmin,
   getAttemptsByStudent,
+);
+
+/*
+ * Get assessment attempts for a teacher-selected student.
+ *
+ * TEACHER:
+ *   Must have an active CLASS_TEACHER or SUBJECT_TEACHER
+ *   assignment for the student's class, section and academic year.
+ *
+ * Returns all assessment attempts for that student,
+ * across all subjects.
+ */
+router.get(
+  "/teacher/student/:studentId",
+  protect,
+  teacherOrHmOrAdmin,
+  getTeacherStudentAttempts,
 );
 
 /*

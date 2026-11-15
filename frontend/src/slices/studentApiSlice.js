@@ -75,6 +75,51 @@ export const studentApiSlice = apiSlice.injectEndpoints({
     }),
 
     /* ==========================================================
+   Get Students By Teacher Assignment
+
+   GET /api/students/teacher-assignment
+
+   Query parameters:
+   - assignmentType: CLASS_TEACHER | SUBJECT_TEACHER
+   - sectionId
+   - academicYearId
+
+   Returns active students belonging to the assigned
+   class and section.
+========================================================== */
+getStudentsByTeacherAssignment: builder.query({
+  query: ({ assignmentType, sectionId, academicYearId }) => ({
+    url: `${STUDENT_URL}/teacher-assignment`,
+    params: {
+      assignmentType,
+      sectionId,
+      academicYearId,
+    },
+  }),
+
+  providesTags: (result) =>
+    result
+      ? [
+          ...result.map((student) => ({
+            type: "Student",
+            id: student._id,
+          })),
+          {
+            type: "Student",
+            id: "TEACHER-ASSIGNED-LIST",
+          },
+        ]
+      : [
+          {
+            type: "Student",
+            id: "TEACHER-ASSIGNED-LIST",
+          },
+        ],
+
+  keepUnusedDataFor: 5,
+}),
+
+    /* ==========================================================
        Get Logged-in Student Profile
        GET /api/students/me
 
@@ -282,6 +327,7 @@ export const studentApiSlice = apiSlice.injectEndpoints({
 export const {
   useCreateStudentMutation,
   useGetStudentsQuery,
+  useGetStudentsByTeacherAssignmentQuery,
   useGetMyStudentProfileQuery,
   useGetStudentByUserQuery,
   useGetStudentDetailsQuery,

@@ -8,6 +8,7 @@ import { logout } from './slices/authSlice';
 
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import { MathJaxContext } from "better-react-mathjax";
 
 const App = () => {
   const dispatch = useDispatch();
@@ -42,5 +43,6 @@ const App = () => {
     </>
   );
 };
+
 
 export default App;

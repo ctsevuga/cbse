@@ -149,6 +149,67 @@ export const resultApiSlice = apiSlice.injectEndpoints({
       keepUnusedDataFor: 5,
     }),
 
+
+/*
+==========================================================
+GET CHILD RESULT BY ASSESSMENT - PARENT
+==========================================================
+
+GET
+/results/parent/assessment/:assessmentId/student/:studentId
+
+Access:
+- PARENT
+
+Security:
+- Backend identifies parent from authenticated user.
+- Validates active Parent profile.
+- Validates active StudentParent relationship.
+- Returns PUBLISHED results only.
+
+Parameters:
+{
+  assessmentId,
+  studentId
+}
+*/
+
+getChildResultByAssessment: builder.query({
+  query: ({
+    assessmentId,
+    studentId,
+  }) => ({
+    url: `${RESULT_URL}/parent/assessment/${assessmentId}/student/${studentId}`,
+  }),
+
+  providesTags: (
+    result,
+    error,
+    { assessmentId, studentId },
+  ) =>
+    result
+      ? [
+          ...result.map((item) => ({
+            type: "Result",
+            id: item._id,
+          })),
+
+          {
+            type: "Result",
+            id: `PARENT-ASSESSMENT-${assessmentId}-${studentId}`,
+          },
+        ]
+      : [
+          {
+            type: "Result",
+            id: `PARENT-ASSESSMENT-${assessmentId}-${studentId}`,
+          },
+        ],
+
+  keepUnusedDataFor: 5,
+}),
+
+
     /*
     ==========================================================
     GET RESULT BY ATTEMPT
@@ -245,41 +306,35 @@ export const resultApiSlice = apiSlice.injectEndpoints({
     - status
     */
 
-    getResultsByAssessment: builder.query({
-      query: ({
-        assessmentId,
-        ...params
-      }) => ({
-        url: `${RESULT_URL}/assessment/${assessmentId}`,
-        params,
-      }),
+    
+getResultsByAssessment: builder.query({
+  query: ({
+    assessmentId,
+    ...params
+  }) => ({
+    url: `${RESULT_URL}/assessment/${assessmentId}`,
+    params,
+  }),
 
-      providesTags: (
-        result,
-        error,
-        { assessmentId },
-      ) =>
-        result
-          ? [
-              ...result.map((item) => ({
-                type: "Result",
-                id: item._id,
-              })),
+  providesTags: (
+    result,
+    error,
+    { assessmentId },
+  ) => [
+    ...(result?.results || []).map((item) => ({
+      type: "Result",
+      id: item._id,
+    })),
 
-              {
-                type: "Result",
-                id: `ASSESSMENT-${assessmentId}`,
-              },
-            ]
-          : [
-              {
-                type: "Result",
-                id: `ASSESSMENT-${assessmentId}`,
-              },
-            ],
+    {
+      type: "Result",
+      id: `ASSESSMENT-${assessmentId}`,
+    },
+  ],
 
-      keepUnusedDataFor: 5,
-    }),
+  keepUnusedDataFor: 5,
+}),
+
 
     /*
     ==========================================================
@@ -460,6 +515,8 @@ export const {
   useGetResultDetailsQuery,
 
   useGetResultByAssessmentAndStudentQuery,
+
+  useGetChildResultByAssessmentQuery,
 
   useGetResultByAttemptQuery,
 

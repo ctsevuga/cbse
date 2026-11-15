@@ -41,7 +41,7 @@ const resolveSchool = async (req, res, next) => {
         .split("/")
         .filter(Boolean);
 
-      const ignoredSegments = new Set([
+   const ignoredSegments = new Set([
   "api",
   "users",
   "auth",
@@ -51,6 +51,8 @@ const resolveSchool = async (req, res, next) => {
   "students",
   "teachers",
   "parents",
+  "student-parent",
+  "student-parents",
   "assessments",
   "results",
   "questions",

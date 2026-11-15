@@ -166,6 +166,10 @@ const studentAttemptSchema = new mongoose.Schema(
       default: 0,
       min: 0,
     },
+    activeSessionStartedAt: {
+  type: Date,
+  default: null,
+},
   },
   {
     timestamps: true,
@@ -266,45 +270,32 @@ studentAttemptSchema.index(
  * VALIDATION
  * ---------------------------------------------------------
  */
-studentAttemptSchema.pre(
-  "validate",
-  function (next) {
-    if (
-      this.attemptedQuestions >
-      this.totalQuestions
-    ) {
-      return next(
-        new Error(
-          "Attempted questions cannot exceed total questions",
-        ),
-      );
-    }
 
-    if (
-      this.obtainedMarks >
-      this.totalMarks
-    ) {
-      return next(
-        new Error(
-          "Obtained marks cannot exceed total marks",
-        ),
-      );
-    }
+studentAttemptSchema.pre("validate", function (next) {
+  console.log("Attempt ID:", this._id);
+  console.log(
+    "Question order length:",
+    this.questionOrder?.length,
+  );
+  console.log(
+    "Total questions:",
+    this.totalQuestions,
+  );
 
-    if (
-      this.questionOrder.length !==
-      this.totalQuestions
-    ) {
-      return next(
-        new Error(
-          "Question order count must match total questions",
-        ),
-      );
-    }
+  if (
+    !this.questionOrder ||
+    this.questionOrder.length !== this.totalQuestions
+  ) {
+    return next(
+      new Error(
+        "Question order count must match total questions",
+      ),
+    );
+  }
 
-    next();
-  },
-);
+  next();
+});
+
 
 const StudentAttempt = mongoose.model(
   "StudentAttempt",

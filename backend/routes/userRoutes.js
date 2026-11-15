@@ -11,6 +11,7 @@ import {
   getUserById,
   updateUser,
   forgotPassword,
+  getTeacherUsers,
   changePassword,
   getForgotPasswordUsers,
 } from "../controllers/userController.js";
@@ -46,7 +47,25 @@ router.post(
   resolveSchool,
   forgotPassword,
 );
+// ======================================================
+// TEACHER USERS
+// ======================================================
 
+// GET /api/users/teachers
+// Returns active TEACHER users belonging to the
+// school resolved by resolveSchool middleware.
+
+router.get(
+  "/teachers",
+  protect,
+  allowRole(
+    "SUPER_ADMIN",
+    "SCHOOL_ADMIN",
+    "HM",
+  ),
+  resolveSchool,
+  getTeacherUsers,
+);
 // PUT /api/users/change-password
 // Authenticated users can change their own password.
 router.put(

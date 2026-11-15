@@ -1,4 +1,5 @@
 import MathText from '../../components/MathText';
+import MathEditor from '../../components/MathEditor';
 import StudentAnswerRenderer from "../../components/StudentAnswerRenderer";
 import {
   useCallback,
@@ -608,7 +609,7 @@ const handleSubmit = async () => {
     onSubmit?.(result);
 
     navigate(
-      `/student/assessments/attempt/${attempt._id}/result`,
+      `/home`,
       {
         state: {
           attempt: result,

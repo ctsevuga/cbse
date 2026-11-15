@@ -704,6 +704,51 @@ const changePassword = asyncHandler(async (req, res) => {
   });
 });
 
+const getTeacherUsers = asyncHandler(
+  async (req, res) => {
+    // ============================================
+    // 1. GET SCHOOL FROM MIDDLEWARE
+    // ============================================
+
+    const schoolId = req.schoolId;
+
+    if (!schoolId) {
+      res.status(400);
+      throw new Error("School context is missing");
+    }
+
+    // ============================================
+    // 2. FIND TEACHER USERS
+    // ============================================
+
+    const teacherUsers = await User.find({
+      school: schoolId,
+      role: "TEACHER",
+      isActive: true,
+    })
+      .select(
+        "name email phone role isActive school"
+      )
+      .populate(
+        "school",
+        "name code"
+      )
+      .sort({
+        name: 1,
+      });
+
+    // ============================================
+    // 3. RETURN RESPONSE
+    // ============================================
+
+    res.status(200).json({
+      count: teacherUsers.length,
+      users: teacherUsers,
+    });
+  },
+);
+
+
 // ======================================================
 // GET PASSWORD RESET REQUESTS
 // GET /api/users/forgot-password-users
@@ -758,6 +803,7 @@ export {
   forgotPassword,
   changePassword,
   getForgotPasswordUsers,
+  getTeacherUsers,
   updateUser,
   deleteUser,
 };

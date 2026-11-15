@@ -40,6 +40,7 @@ import subjectRoutes from "./routes/subjectRoutes.js";
 import teacherAssignmentRoutes from "./routes/teacherAssignmentRoutes.js";
 import teacherRoutes from "./routes/teacherRoutes.js";
 import topicRoutes from "./routes/topicRoutes.js";
+import dashboardRoutes from "./routes/dashboardRoutes.js";
 
 
 import userRoutes from "./routes/userRoutes.js";
@@ -91,7 +92,7 @@ app.use("/api/subjects", subjectRoutes);
 app.use("/api/teacher-assignments", teacherAssignmentRoutes);
 app.use("/api/teachers", teacherRoutes);
 app.use("/api/topics", topicRoutes);
-
+app.use("/api/dashboard", dashboardRoutes);
 
 app.use("/api/users", userRoutes);
 

@@ -1,6 +1,6 @@
 import asyncHandler from "../middleware/asyncHandler.js";
 import crypto from "crypto";
-
+import mongoose from "mongoose";
 import School from "../models/schoolModel.js";
 import User from "../models/userModel.js";
 
@@ -244,14 +244,14 @@ const getActiveSchools = asyncHandler(async (req, res) => {
   if (typeof state === "string" && state.trim()) {
     query.state = new RegExp(
       `^${escapeRegex(state.trim())}$`,
-      "i",
+      "i"
     );
   }
 
   if (typeof city === "string" && city.trim()) {
     query.city = new RegExp(
       `^${escapeRegex(city.trim())}$`,
-      "i",
+      "i"
     );
   }
 

@@ -2,12 +2,14 @@ import express from "express";
 
 import {
   createAnswerEvaluation,
-  saveAnswerEvaluation, // NEW
+  saveAnswerEvaluation,
   completeAttemptEvaluation,
   reviseAttemptEvaluation,
   getAnswerEvaluations,
   getAttemptsForEvaluation,
+  getAssessmentAttemptsForTeacher, // NEW
   getAttemptsForReview,
+  getAttemptsForReviewByAssessment,
   getAnswerEvaluationById,
   getEvaluationByStudentAnswer,
   getEvaluationsByAttempt,
@@ -183,6 +185,49 @@ router.get(
   getAttemptsForEvaluation,
 );
 
+/**
+ * ======================================================
+ * ASSESSMENT ATTEMPTS FOR TEACHER
+ * ======================================================
+ *
+ * Fetches all student attempts for one assessment.
+ *
+ * Query parameters:
+ *   assessment: Assessment ID
+ *
+ * Returns populated student details and attempt data
+ * for the selected assessment.
+ *
+ * Intended for TeacherAssessmentAttemptsScreen.jsx.
+ *
+ * TEACHER only.
+ */
+router.get(
+  "/assessment-attempts",
+  protect,
+  teacher,
+  resolveSchool,
+  getAssessmentAttemptsForTeacher,
+);
+
+/**
+ * GET EVALUATED ATTEMPTS BY ASSESSMENT
+ *
+ * Query parameter:
+ *   assessment: Assessment ID
+ *
+ * Returns evaluated attempts for all students
+ * who attempted this assessment.
+ *
+ * TEACHER only.
+ */
+router.get(
+  "/attempts/review/by-assessment",
+  protect,
+  teacher,
+  resolveSchool,
+  getAttemptsForReviewByAssessment,
+);
 
 /**
  * ======================================================

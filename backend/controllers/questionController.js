@@ -438,9 +438,18 @@ export const getQuestions = asyncHandler(
       createdBy,
       approvedBy,
       isActive,
+
+      // New search and pagination parameters
+      keyword,
+      page = "1",
+      limit = "20",
     } = req.query;
 
     const filter = {};
+
+    // ------------------------------------------
+    // Existing filters
+    // ------------------------------------------
 
     if (classId) {
       filter.class = classId;
@@ -459,53 +468,44 @@ export const getQuestions = asyncHandler(
     }
 
     if (questionType) {
-      validateQuestionType(
-        questionType,
-      );
+      validateQuestionType(questionType);
 
-      filter.questionType =
-        questionType;
+      filter.questionType = questionType;
     }
 
     if (marks !== undefined) {
       if (
-        Number.isNaN(Number(marks))
+        marks.trim() === "" ||
+        !Number.isFinite(Number(marks)) ||
+        Number(marks) < 0
       ) {
         res.status(400);
         throw new Error(
-          "Marks must be a number",
+          "Marks must be a valid non-negative number",
         );
       }
 
       filter.marks = Number(marks);
     }
 
-    if (
-      answerEditorConfiguration
-    ) {
+    if (answerEditorConfiguration) {
       filter.answerEditorConfiguration =
         answerEditorConfiguration;
     }
 
     if (difficulty) {
-      validateDifficulty(
-        difficulty,
-      );
+      validateDifficulty(difficulty);
 
-      filter.difficulty =
-        difficulty;
+      filter.difficulty = difficulty;
     }
 
     if (questionGroup) {
-      filter.questionGroup =
-        questionGroup;
+      filter.questionGroup = questionGroup;
     }
 
     if (status) {
       if (
-        !QUESTION_STATUSES.includes(
-          status,
-        )
+        !QUESTION_STATUSES.includes(status)
       ) {
         res.status(400);
         throw new Error(
@@ -517,13 +517,11 @@ export const getQuestions = asyncHandler(
     }
 
     if (createdBy) {
-      filter.createdBy =
-        createdBy;
+      filter.createdBy = createdBy;
     }
 
     if (approvedBy) {
-      filter.approvedBy =
-        approvedBy;
+      filter.approvedBy = approvedBy;
     }
 
     if (isActive !== undefined) {
@@ -537,23 +535,320 @@ export const getQuestions = asyncHandler(
         );
       }
 
-      filter.isActive =
-        isActive === "true";
+      filter.isActive = isActive === "true";
     }
 
-    const questions =
-      await populateQuestion(
-        Question.find(filter).sort({
-          subject: 1,
-          chapter: 1,
-          topic: 1,
-          createdAt: -1,
-        }),
+    // ------------------------------------------
+    // Search question text
+    // ------------------------------------------
+
+    if (
+      keyword !== undefined &&
+      keyword.trim() !== ""
+    ) {
+      const searchText = keyword.trim();
+
+      // Prevent user input from being interpreted
+      // as a regular-expression pattern.
+      const escapedKeyword = searchText.replace(
+        /[.*+?^${}()|[\]\\]/g,
+        "\\$&",
       );
 
-    res.json(questions);
+      filter.questionText = {
+        $regex: escapedKeyword,
+        $options: "i",
+      };
+    }
+
+    // ------------------------------------------
+    // Validate pagination
+    // ------------------------------------------
+
+    const parsedPage = Number(page);
+    const parsedLimit = Number(limit);
+
+    if (
+      !Number.isInteger(parsedPage) ||
+      parsedPage < 1
+    ) {
+      res.status(400);
+      throw new Error(
+        "Page must be a positive integer",
+      );
+    }
+
+    if (
+      !Number.isInteger(parsedLimit) ||
+      parsedLimit < 1 ||
+      parsedLimit > 100
+    ) {
+      res.status(400);
+      throw new Error(
+        "Limit must be an integer between 1 and 100",
+      );
+    }
+
+    const skip = (parsedPage - 1) * parsedLimit;
+
+    // ------------------------------------------
+    // Fetch paginated questions and total count
+    // ------------------------------------------
+
+    const [questions, totalQuestions] =
+      await Promise.all([
+        populateQuestion(
+          Question.find(filter)
+            .sort({
+              subject: 1,
+              chapter: 1,
+              topic: 1,
+              createdAt: -1,
+              _id: 1,
+            })
+            .skip(skip)
+            .limit(parsedLimit),
+        ),
+
+        Question.countDocuments(filter),
+      ]);
+
+    const totalPages = Math.ceil(
+      totalQuestions / parsedLimit,
+    );
+
+    // ------------------------------------------
+    // Return paginated response
+    // ------------------------------------------
+
+    res.status(200).json({
+      questions,
+      pagination: {
+        page: parsedPage,
+        limit: parsedLimit,
+        totalQuestions,
+        totalPages,
+        hasNextPage: parsedPage < totalPages,
+        hasPreviousPage: parsedPage > 1,
+      },
+    });
   },
 );
+
+
+export const getAssignmentQuestions = asyncHandler(
+  async (req, res) => {
+    const {
+      class: classId,
+      subject,
+      chapter,
+      topic,
+      questionType,
+      marks,
+      answerEditorConfiguration,
+      difficulty,
+      questionGroup,
+      status,
+      createdBy,
+      approvedBy,
+      isActive,
+      keyword,
+      page = "1",
+      limit = "20",
+    } = req.query;
+
+    const filter = {};
+
+    // ------------------------------------------
+    // Filters
+    // ------------------------------------------
+
+    if (classId) filter.class = classId;
+    if (subject) filter.subject = subject;
+    if (chapter) filter.chapter = chapter;
+    if (topic) filter.topic = topic;
+
+    if (questionType) {
+      validateQuestionType(questionType);
+      filter.questionType = questionType;
+    }
+
+    if (marks !== undefined) {
+      if (
+        marks.trim() === "" ||
+        !Number.isFinite(Number(marks)) ||
+        Number(marks) < 0
+      ) {
+        res.status(400);
+        throw new Error(
+          "Marks must be a valid non-negative number",
+        );
+      }
+
+      filter.marks = Number(marks);
+    }
+
+    if (answerEditorConfiguration) {
+      filter.answerEditorConfiguration =
+        answerEditorConfiguration;
+    }
+
+    if (difficulty) {
+      validateDifficulty(difficulty);
+      filter.difficulty = difficulty;
+    }
+
+    if (questionGroup) {
+      filter.questionGroup = questionGroup;
+    }
+
+    if (status) {
+      if (!QUESTION_STATUSES.includes(status)) {
+        res.status(400);
+        throw new Error("Invalid question status");
+      }
+
+      filter.status = status;
+    }
+
+    if (createdBy) filter.createdBy = createdBy;
+    if (approvedBy) filter.approvedBy = approvedBy;
+
+    if (isActive !== undefined) {
+      if (
+        isActive !== "true" &&
+        isActive !== "false"
+      ) {
+        res.status(400);
+        throw new Error(
+          "isActive must be true or false",
+        );
+      }
+
+      filter.isActive = isActive === "true";
+    }
+
+    // ------------------------------------------
+    // Search question text
+    // ------------------------------------------
+
+    if (keyword?.trim()) {
+      const escapedKeyword = keyword
+        .trim()
+        .replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+      filter.questionText = {
+        $regex: escapedKeyword,
+        $options: "i",
+      };
+    }
+
+    // ------------------------------------------
+    // Pagination
+    // ------------------------------------------
+
+    const parsedPage = Number(page);
+    const parsedLimit = Number(limit);
+
+    if (
+      !Number.isInteger(parsedPage) ||
+      parsedPage < 1
+    ) {
+      res.status(400);
+      throw new Error(
+        "Page must be a positive integer",
+      );
+    }
+
+    if (
+      !Number.isInteger(parsedLimit) ||
+      parsedLimit < 1 ||
+      parsedLimit > 100
+    ) {
+      res.status(400);
+      throw new Error(
+        "Limit must be an integer between 1 and 100",
+      );
+    }
+
+    const skip = (parsedPage - 1) * parsedLimit;
+
+    // ------------------------------------------
+    // Fetch questions and count
+    // ------------------------------------------
+
+    const [questions, totalQuestions] =
+      await Promise.all([
+        Question.find(filter)
+          .populate({
+            path: "answerEditorConfiguration",
+            select:
+              "name code answerMode configuration subject isActive",
+          })
+          .populate("class")
+          .populate("subject")
+          .populate("chapter")
+          .populate("topic")
+          .populate("questionGroup")
+          .sort({
+            subject: 1,
+            chapter: 1,
+            topic: 1,
+            createdAt: -1,
+            _id: 1,
+          })
+          .skip(skip)
+          .limit(parsedLimit)
+          .lean(),
+
+        Question.countDocuments(filter),
+      ]);
+
+    const totalPages = Math.ceil(
+      totalQuestions / parsedLimit,
+    );
+
+    // ------------------------------------------
+    // Assignment-friendly response
+    // ------------------------------------------
+
+    const assignmentQuestions = questions.map(
+      (question) => ({
+        ...question,
+
+        answerEditorConfiguration:
+          question.answerEditorConfiguration
+            ? {
+                _id:
+                  question.answerEditorConfiguration._id,
+                name:
+                  question.answerEditorConfiguration.name,
+                code:
+                  question.answerEditorConfiguration.code,
+                answerMode:
+                  question.answerEditorConfiguration.answerMode,
+                configuration:
+                  question.answerEditorConfiguration.configuration,
+              }
+            : null,
+      }),
+    );
+
+    res.status(200).json({
+      success: true,
+      questions: assignmentQuestions,
+      pagination: {
+        page: parsedPage,
+        limit: parsedLimit,
+        totalQuestions,
+        totalPages,
+        hasNextPage: parsedPage < totalPages,
+        hasPreviousPage: parsedPage > 1,
+      },
+    });
+  },
+);
+
 
 export const getQuestionById =
   asyncHandler(async (req, res) => {

@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useSelector } from "react-redux";
 import {
   Plus,
   Search,
@@ -33,6 +34,12 @@ import {
 
 const StudentListScreen = () => {
   const navigate = useNavigate();
+
+  const { userInfo } = useSelector((state) => state.auth);
+
+const canManageStudents = ["SCHOOL_ADMIN", "HM"].includes(
+  userInfo?.role
+);
 
   const [search, setSearch] = useState("");
   const [academicYear, setAcademicYear] = useState("");
@@ -295,14 +302,16 @@ const handleClassChange = (e) => {
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={() => navigate("/admin/students/create")}
-            className="inline-flex items-center justify-center gap-2 rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-          >
-            <Plus className="h-5 w-5" />
-            Add Student
-          </button>
+          {canManageStudents && (
+  <button
+    type="button"
+    onClick={() => navigate("/admin/students/create")}
+    className="inline-flex items-center justify-center gap-2 rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+  >
+    <Plus className="h-5 w-5" />
+    Add Student
+  </button>
+)}
         </div>
 
         {/* =====================================================

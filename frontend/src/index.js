@@ -88,6 +88,15 @@ import ParentDetailsScreen from "./screens/Parent/ParentDetailsScreen";
 import ParentListScreen from "./screens/Parent/ParentListScreen";
 
 // ======================================================
+// Student Parent Screens
+// ======================================================
+
+import CreateStudentParentScreen from "./screens/StudentParent/CreateStudentParentScreen";
+import EditStudentParentScreen from "./screens/StudentParent/EditStudentParentScreen";
+import StudentParentDetailsScreen from "./screens/StudentParent/StudentParentDetailsScreen";
+import StudentParentListScreen from "./screens/StudentParent/StudentParentListScreen";
+
+// ======================================================
 // Class Screens
 // ======================================================
 
@@ -204,6 +213,7 @@ import QuestionBlueprintListScreen from "./screens/questionBluePrint/QuestionBlu
 import AssessmentDetailsscreen from "./screens/assessment/AssessmentDetailsscreen";
 import AssessmentListScreen from "./screens/assessment/AssessmentListScreen";
 import CreateAssessmentScreen from "./screens/assessment/CreateAssessmentScreen";
+import CreateAssessmentByTeacher from "./screens/assessment/CreateAssessmentByTeacher";
 import EditAssessmentscreen from "./screens/assessment/EditAssessmentscreen";
 import MyAssessmentsScreen from "./screens/assessment/MyAssessmentsScreen";
 
@@ -213,6 +223,7 @@ import MyAssessmentsScreen from "./screens/assessment/MyAssessmentsScreen";
 
 import AssessmentSectionDetails from "./screens/AssessmentSection/AssessmentSectionDetails";
 import AssessmentSectionListScreen from "./screens/AssessmentSection/AssessmentSectionListScreen";
+import MyAssessmentSection from "./screens/AssessmentSection/MyAssessmentSection";
 import CreateAssessmentSectionScreen from "./screens/AssessmentSection/CreateAssessmentSectionScreen";
 import EditAssessmentSectionscreen from "./screens/AssessmentSection/EditAssessmentSectionscreen";
 
@@ -236,7 +247,10 @@ import StudentAttempstByAssessment from "./screens/StudentAttempt/StudentAttemps
 import StudentAttemptDetailsScreen from "./screens/StudentAttempt/StudentAttemptDetailsScreen";
 import StudentAttemptsByStudentScreen from "./screens/StudentAttempt/StudentAttemptsByStudentScreen";
 import StudentAttemptsListScreen from "./screens/StudentAttempt/StudentAttemptsListScreen";
+import TeacherAssessmentAttemptsScreen from "./screens/StudentAttempt/TeacherAssessmentAttemptsScreen";
+import TeacherAssessmentAttemptsReviewScreen from "./screens/StudentAttempt/TeacherAssessmentAttemptsReviewScreen";
 import StudentAttemptsScreen from "./screens/StudentAttempt/StudentAttemptsScreen";
+import ParentAttemptsScreen from "./screens/StudentAttempt/ParentAttemptsScreen";
 import StudentAttemptsReviewScreen from "./screens/StudentAttempt/StudentAttemptsReviewScreen";
 
 
@@ -277,12 +291,14 @@ import ResultDetailsPage from "./screens/results/ResultDetailsPage";
 import ResultListPage from "./screens/results/ResultListPage";
 import StudentAssessmentResultPage from "./screens/results/StudentAssessmentResultPage";
 import StudentResultsPage from "./screens/results/StudentResultsPage";
+// import ParentAssessmentResultPage from "./screens/results/ParentAssessmentResultPage";
 
 // ======================================================
 //  Result DetailsScreens
 // ======================================================
 
-import AssessmentQuestionResultPage from "./screens/ResultDetails/AssessmentQuestionResultPage";
+
+import TeacherAssessmentResultsPage from "./screens/ResultDetails/TeacherAssessmentResultsPage";
 import EvaluationQueuePage from "./screens/ResultDetails/EvaluationQueuePage";
 import QuestionPerformancePage from "./screens/ResultDetails/QuestionPerformancePage";
 import ResultDetailPage from "./screens/ResultDetails/ResultDetailPage";
@@ -290,6 +306,18 @@ import ResultDetailsByResultPage from "./screens/ResultDetails/ResultDetailsByRe
 import ResultDetailsViewPage from "./screens/ResultDetails/ResultDetailsViewPage";
 import StudentResultDetailsPage from "./screens/ResultDetails/StudentResultDetailsPage";
 import SubjectResultAnalysisPage from "./screens/ResultDetails/SubjectResultAnalysisPage";
+
+// ======================================================
+//  Dashboard Screens
+// ======================================================
+
+import TeacherDashboardScreen from "./screens/Dashboard/TeacherDashboardScreen";
+import ClassTeacherDashboardScreen from "./screens/Dashboard/ClassTeacherDashboardScreen";
+import StudentDashboardScreen from "./screens/Dashboard/StudentDashboardScreen";
+import ParentDashboardScreen from "./screens/Dashboard/ParentDashboardScreen";
+import SchoolAdminDashboardScreen from "./screens/Dashboard/SchoolAdminDashboardScreen";
+
+
 
 // ======================================================
 // Route Guards
@@ -443,7 +471,7 @@ const RouterWrapper = () => {
         users: * Can view only their own school. * * The backend/controller
         handles the * school-scope authorization. */
         <Route
-          path="/schools/:id"
+          path="/admin/school/:id"
           element={
             <AuthenticatedRoute user={userInfo}>
               <SchoolViewScreen />
@@ -453,11 +481,11 @@ const RouterWrapper = () => {
         /* * Edit School * * Backend: * PUT /api/schools/:id * * Access: *
         SUPER_ADMIN only */
         <Route
-          path="/schools/:id/edit"
+          path="/admin/school/:id/edit"
           element={
-            <SuperAdminRoute user={userInfo}>
+            <HMOrAdminRoute user={userInfo}>
               <SchoolEditScreen />
-            </SuperAdminRoute>
+            </HMOrAdminRoute>
           }
         />
         /* * School Users * * Backend: * GET /api/schools/:id/users * * Access:
@@ -487,17 +515,17 @@ const RouterWrapper = () => {
         // Create Academic Year // POST /api/academic-years // Access:
         SCHOOL_ADMIN only
         <Route
-          path="/academic-years/create"
+          path="/admin/academic-years/create"
           element={
-            <SchoolAdminRoute user={userInfo}>
+            <HMOrAdminRoute user={userInfo}>
               <CreateAcademicYearScreen />
-            </SchoolAdminRoute>
+            </HMOrAdminRoute>
           }
         />
         // Academic Year Details // GET /api/academic-years/:id // Access: Any
         authenticated user
         <Route
-          path="/academic-years/:id"
+          path="admin/academic-years/:id"
           element={
             <AuthenticatedRoute user={userInfo}>
               <AcademicYearDetailsScreen />
@@ -507,7 +535,7 @@ const RouterWrapper = () => {
         // Edit Academic Year // PUT /api/academic-years/:id // Access:
         SCHOOL_ADMIN only
         <Route
-          path="/academic-years/:id/edit"
+          path="admin/academic-years/:id/edit"
           element={
             <SchoolAdminRoute user={userInfo}>
               <EditAcademicYearScreen />
@@ -575,6 +603,82 @@ const RouterWrapper = () => {
             </AdminOrSuperAdminRoute>
           }
         />
+
+        {/* ==================================================
+    STUDENT-PARENT RELATIONSHIP ROUTES
+    ================================================== */}
+
+{/*
+  Student-Parent Relationship List
+
+  Backend:
+  GET /api/student-parents
+
+  Access:
+  SCHOOL_ADMIN, HM
+*/}
+<Route
+  path="/student-parents"
+  element={
+    <HMOrAdminRoute user={userInfo}>
+      <StudentParentListScreen />
+    </HMOrAdminRoute>
+  }
+/>
+
+{/*
+  Create Student-Parent Relationship
+
+  Backend:
+  POST /api/student-parents
+
+  Access:
+  SCHOOL_ADMIN, HM
+*/}
+<Route
+  path="/student-parents/create"
+  element={
+    <HMOrAdminRoute user={userInfo}>
+      <CreateStudentParentScreen />
+    </HMOrAdminRoute>
+  }
+/>
+
+{/*
+  Student-Parent Relationship Details
+
+  Backend:
+  GET /api/student-parents/:id
+
+  Access:
+  SCHOOL_ADMIN, HM
+*/}
+<Route
+  path="/student-parents/:id"
+  element={
+    <HMOrAdminRoute user={userInfo}>
+      <StudentParentDetailsScreen />
+    </HMOrAdminRoute>
+  }
+/>
+
+{/*
+  Edit Student-Parent Relationship
+
+  Backend:
+  PUT /api/student-parents/:id
+
+  Access:
+  SCHOOL_ADMIN, HM
+*/}
+<Route
+  path="/student-parents/:id/edit"
+  element={
+    <HMOrAdminRoute user={userInfo}>
+      <EditStudentParentScreen />
+    </HMOrAdminRoute>
+  }
+/>
         // ====================================================== // Teacher
         Routes // ====================================================== //
         Teacher List // GET /api/teachers // Access: Any authenticated user
@@ -979,7 +1083,7 @@ const RouterWrapper = () => {
         // Teacher Assignment List // GET /api/teacher-assignments // Access:
         SCHOOL_ADMIN + SUPER_ADMIN
         <Route
-          path="/teacher-assignments"
+          path="/admin/teacher-assignments"
           element={
             <AdminOrSuperAdminRoute user={userInfo}>
               <TeacherAssignmentListScreen />
@@ -989,11 +1093,11 @@ const RouterWrapper = () => {
         // Create Teacher Assignment // POST /api/teacher-assignments // Access:
         SCHOOL_ADMIN + SUPER_ADMIN
         <Route
-          path="/teacher-assignments/create"
+          path="/admin/teacher-assignments/create"
           element={
-            <AdminOrSuperAdminRoute user={userInfo}>
+            <HMOrAdminRoute user={userInfo}>
               <CreateTeacherAssignmentScreen />
-            </AdminOrSuperAdminRoute>
+            </HMOrAdminRoute>
           }
         />
         // My Teacher Assignments // GET /api/teacher-assignments/my // Access:
@@ -1010,7 +1114,7 @@ const RouterWrapper = () => {
         // Teacher Assignment Details // GET /api/teacher-assignments/:id //
         Access: Any authenticated user
         <Route
-          path="/teacher-assignments/:id"
+          path="/teacher/teacher-assignments/:id"
           element={
             <AuthenticatedRoute user={userInfo}>
               <TeacherAssignmentDetailsScreen />
@@ -1020,7 +1124,7 @@ const RouterWrapper = () => {
         // Edit Teacher Assignment // PUT /api/teacher-assignments/:id //
         Access: SCHOOL_ADMIN + SUPER_ADMIN
         <Route
-          path="/teacher-assignments/:id/edit"
+          path="/admin/teacher-assignments/:id/edit"
           element={
             <AdminOrSuperAdminRoute user={userInfo}>
               <EditTeacherAssignmentScreen />
@@ -1383,6 +1487,15 @@ const RouterWrapper = () => {
           }
         />
 
+        <Route
+          path="/student-attempts/parent"
+          element={
+            <ParentRoute user={userInfo}>
+              <ParentAttemptsScreen />
+            </ParentRoute>
+          }
+        />
+
         {/*
           Update Activity / Submit Attempt
           Backend:
@@ -1396,6 +1509,33 @@ const RouterWrapper = () => {
             <StudentRoute user={userInfo}>
               <StudentAssessmentAttemptScreen />
             </StudentRoute>
+          }
+        />
+
+        <Route
+          path="/student/dashboard"
+          element={
+            <StudentRoute user={userInfo}>
+              <StudentDashboardScreen />
+            </StudentRoute>
+          }
+        />
+
+        <Route
+          path="/parent/dashboard"
+          element={
+            <ParentRoute user={userInfo}>
+              <ParentDashboardScreen />
+            </ParentRoute>
+          }
+        />
+
+        <Route
+          path="/admin/dashboard"
+          element={
+            <HMOrAdminRoute user={userInfo}>
+              <SchoolAdminDashboardScreen />
+            </HMOrAdminRoute>
           }
         />
 
@@ -1634,6 +1774,15 @@ const RouterWrapper = () => {
   }
 />
 
+<Route
+  path="/assessment/teacher/create"
+  element={
+    <TeacherRoute user={userInfo}>
+      <CreateAssessmentByTeacher />
+    </TeacherRoute>
+  }
+/>
+
 
 
 {/*
@@ -1840,10 +1989,10 @@ const RouterWrapper = () => {
   Backend validates result ownership and school scope.
 */
 <Route
-  path="/result-details/assessment-question/:assessmentQuestionId"
+  path="/results/assessment"
   element={
     <AuthenticatedRoute user={userInfo}>
-      <AssessmentQuestionResultPage />
+      <TeacherAssessmentResultsPage />
     </AuthenticatedRoute>
   }
 />
@@ -1926,7 +2075,7 @@ const RouterWrapper = () => {
   Backend validates student ownership and school scope.
 */
 <Route
-  path="/result-details/student/:studentId"
+  path="/student/attempts/:studentId"
   element={
     <AuthenticatedRoute user={userInfo}>
       <StudentResultDetailsPage />
@@ -1961,6 +2110,50 @@ const RouterWrapper = () => {
   element={
     <TeacherRoute user={userInfo}>
       <EvaluationQueuePage />
+    </TeacherRoute>
+  }
+/>
+<Route
+  path="/assessment-section/my"
+  element={
+    <TeacherRoute user={userInfo}>
+      <MyAssessmentSection />
+    </TeacherRoute>
+  }
+/>
+
+<Route
+  path="/student-attempts/teacher"
+  element={
+    <TeacherRoute user={userInfo}>
+      <TeacherAssessmentAttemptsScreen />
+    </TeacherRoute>
+  }
+/>
+
+<Route
+  path="/student-attempts/teacher/review"
+  element={
+    <TeacherRoute user={userInfo}>
+      <TeacherAssessmentAttemptsReviewScreen />
+    </TeacherRoute>
+  }
+/>
+
+<Route
+  path="/teacher/dashboard"
+  element={
+    <TeacherRoute user={userInfo}>
+      <TeacherDashboardScreen />
+    </TeacherRoute>
+  }
+/>
+
+<Route
+  path="/class/teacher/dashboard"
+  element={
+    <TeacherRoute user={userInfo}>
+      <ClassTeacherDashboardScreen />
     </TeacherRoute>
   }
 />

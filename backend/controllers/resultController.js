@@ -7,6 +7,9 @@ import Student from "../models/studentModel.js";
 import Assessment from "../models/assessmentModel.js";
 import AnswerEvaluation from "../models/answerEvaluationModel.js";
 
+import Parent from "../models/parentModel.js";
+import StudentParent from "../models/studentParentModel.js";
+
 const RESULT_STATUSES = [
   "DRAFT",
   "PENDING_EVALUATION",
@@ -965,6 +968,145 @@ export const getResultByAssessmentAndStudent =
     res.json(results);
   });
 
+
+
+
+// ==========================================================
+// GET CHILD'S RESULT BY ASSESSMENT
+//
+// Access: PARENT
+//
+// A parent can view only published results belonging
+// to their own children.
+// ==========================================================
+
+export const getChildResultByAssessment =
+  asyncHandler(async (req, res) => {
+
+    // ------------------------------------------------------
+    // 1. Validate IDs
+    // ------------------------------------------------------
+
+    validateObjectId(
+      req.params.assessmentId,
+      "assessment ID"
+    );
+
+    validateObjectId(
+      req.params.studentId,
+      "student ID"
+    );
+
+    // ------------------------------------------------------
+    // 2. Validate Parent role
+    // ------------------------------------------------------
+
+    if (req.user.role !== "PARENT") {
+      res.status(403);
+
+      throw new Error(
+        "Only parents can access their children's results"
+      );
+    }
+
+    // ------------------------------------------------------
+    // 3. Resolve school
+    // ------------------------------------------------------
+
+    const schoolId = getUserSchool(req);
+
+    if (!schoolId) {
+      res.status(403);
+
+      throw new Error(
+        "School information is required"
+      );
+    }
+
+    // ------------------------------------------------------
+    // 4. Validate student belongs to the school
+    // ------------------------------------------------------
+
+    const student = await validateStudent(
+      req.params.studentId,
+      schoolId
+    );
+
+    // ------------------------------------------------------
+    // 5. Find logged-in parent's profile
+    // ------------------------------------------------------
+
+    const parent = await Parent.findOne({
+      user: req.user._id,
+      school: schoolId,
+      isActive: true,
+    });
+
+    if (!parent) {
+      res.status(404);
+
+      throw new Error(
+        "Parent profile not found"
+      );
+    }
+
+    // ------------------------------------------------------
+    // 6. Verify parent-child relationship
+    //
+    // Only active relationships are authorized.
+    // ------------------------------------------------------
+
+    const studentParent =
+      await StudentParent.findOne({
+        student: student._id,
+        parent: parent._id,
+        isActive: true,
+      });
+
+    if (!studentParent) {
+      res.status(403);
+
+      throw new Error(
+        "You are not authorized to access this student's results"
+      );
+    }
+
+    // ------------------------------------------------------
+    // 7. Validate assessment belongs to the school
+    // ------------------------------------------------------
+
+    await validateAssessment(
+      req.params.assessmentId,
+      schoolId
+    );
+
+    // ------------------------------------------------------
+    // 8. Retrieve published results only
+    // ------------------------------------------------------
+
+    const filter = {
+      assessment: req.params.assessmentId,
+      student: student._id,
+
+      // Parents can view only officially published results.
+      status: "PUBLISHED",
+    };
+
+    const results = await populateResult(
+      Result.find(filter).sort({
+        createdAt: -1,
+      })
+    );
+
+    // ------------------------------------------------------
+    // 9. Return results
+    // ------------------------------------------------------
+
+    res.status(200).json(results);
+
+  });
+
+
 /*
  * ============================================================
  * GET RESULT BY ATTEMPT
@@ -1108,60 +1250,72 @@ export const getResultsByStudent =
  * ============================================================
  */
 
-export const getResultsByAssessment =
-  asyncHandler(async (req, res) => {
+
+export const getResultsByAssessment = asyncHandler(
+  async (req, res) => {
+    const { assessmentId } = req.params;
+
+    // Validate Assessment ID
     validateObjectId(
-      req.params.assessmentId,
-      "assessment ID",
+      assessmentId,
+      "assessment ID"
     );
 
-    const schoolId =
-      getUserSchool(req);
+    // School context from resolveSchool middleware
+    const schoolId = getUserSchool(req);
 
+    // Validate assessment belongs to the school
     await validateAssessment(
-      req.params.assessmentId,
-      schoolId,
+      assessmentId,
+      schoolId
     );
 
+    // Build filter
     const filter = {
-      assessment:
-        req.params.assessmentId,
+      assessment: assessmentId,
     };
 
+    // Optional student filter
     if (req.query.studentId) {
       validateObjectId(
         req.query.studentId,
-        "student ID",
+        "student ID"
       );
 
       await validateStudent(
         req.query.studentId,
-        schoolId,
+        schoolId
       );
 
-      filter.student =
-        req.query.studentId;
+      filter.student = req.query.studentId;
     }
 
+    // Optional result status filter
     if (req.query.status) {
       validateResultStatus(
-        req.query.status,
+        req.query.status
       );
 
-      filter.status =
-        req.query.status;
+      filter.status = req.query.status;
     }
 
-    const results =
-      await populateResult(
-        Result.find(filter).sort({
-          percentage: -1,
-          obtainedMarks: -1,
-        }),
-      );
+    // Fetch results
+    const results = await populateResult(
+      Result.find(filter).sort({
+        percentage: -1,
+        obtainedMarks: -1,
+        createdAt: -1,
+      })
+    );
 
-    res.json(results);
-  });
+    res.status(200).json({
+      assessmentId,
+      totalResults: results.length,
+      results,
+    });
+  }
+);
+
 
 /*
  * ============================================================

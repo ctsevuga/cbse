@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import Swal from "sweetalert2";
+
 import {
   ArrowLeft,
   CheckCircle2,
@@ -14,20 +15,48 @@ import {
   Save,
 } from "lucide-react";
 
+import { useNavigate, useParams } from "react-router-dom";
+
 import { useGetAnswersByAttemptQuery } from "../../slices/studentAnswerApiSlice";
 
 import {
   useSaveAnswerEvaluationMutation,
   useCompleteAttemptEvaluationMutation,
 } from "../../slices/answerEvaluationApiSlice";
-import { useNavigate, useParams } from "react-router-dom";
+
 import MathText from "../../components/MathText";
+
+const getQuestion = (answer) => {
+  const assessmentQuestion = answer?.assessmentQuestion;
+
+  return (
+    assessmentQuestion?.question ||
+    answer?.question ||
+    assessmentQuestion ||
+    null
+  );
+};
+
+// Determine the actual question mode consistently.
+const getAnswerMode = (answer) => {
+  const question = getQuestion(answer);
+
+  return (
+    answer?.answerMode ||
+    question?.answerMode ||
+    question?.questionType ||
+    ""
+  ).toUpperCase();
+};
 
 const StudentAnswersScreen = () => {
   const navigate = useNavigate();
   const { attemptId } = useParams();
+
+  // Evaluation states
   const [marksByAnswer, setMarksByAnswer] = useState({});
   const [feedbackByAnswer, setFeedbackByAnswer] = useState({});
+
   const [saveError, setSaveError] = useState({});
   const [saveSuccess, setSaveSuccess] = useState({});
   const [evaluatedByAnswer, setEvaluatedByAnswer] = useState({});
@@ -35,6 +64,8 @@ const StudentAnswersScreen = () => {
 
   const [completeError, setCompleteError] = useState("");
   const [completeSuccess, setCompleteSuccess] = useState("");
+  // Section-wise navigation
+  const [activeSectionIndex, setActiveSectionIndex] = useState(0);
 
   const [saveAnswerEvaluation, { isLoading: isSavingEvaluation }] =
     useSaveAnswerEvaluationMutation();
@@ -58,15 +89,7 @@ const StudentAnswersScreen = () => {
       [answerId]: "",
     }));
   };
-  
-const isAnswerEvaluated = (answer) => {
-  return (
-    answer?.evaluation != null ||
-    answer?.answerEvaluation != null ||
-    answer?.evaluationStatus === "EVALUATED" ||
-    evaluatedByAnswer[answer?._id] === true
-  );
-};
+
   const handleFeedbackChange = (answerId, value) => {
     setFeedbackByAnswer((prev) => ({
       ...prev,
@@ -84,6 +107,8 @@ const isAnswerEvaluated = (answer) => {
     }));
   };
 
+  // Check whether an answer has already been evaluated.
+
   const handleSaveEvaluation = async (answer, maxMarks) => {
     const answerId = answer?._id;
 
@@ -95,7 +120,7 @@ const isAnswerEvaluated = (answer) => {
       return;
     }
 
-    // Prevent saving an already evaluated answer.
+    // Prevent duplicate evaluation.
     if (isAnswerEvaluated(answer) || savingByAnswer[answerId]) {
       return;
     }
@@ -124,9 +149,20 @@ const isAnswerEvaluated = (answer) => {
       return;
     }
 
-    setSaveError((prev) => ({ ...prev, [answerId]: "" }));
-    setSaveSuccess((prev) => ({ ...prev, [answerId]: false }));
-    setSavingByAnswer((prev) => ({ ...prev, [answerId]: true }));
+    setSaveError((prev) => ({
+      ...prev,
+      [answerId]: "",
+    }));
+
+    setSaveSuccess((prev) => ({
+      ...prev,
+      [answerId]: false,
+    }));
+
+    setSavingByAnswer((prev) => ({
+      ...prev,
+      [answerId]: true,
+    }));
 
     try {
       await saveAnswerEvaluation({
@@ -135,7 +171,7 @@ const isAnswerEvaluated = (answer) => {
         feedback: feedbackByAnswer[answerId] ?? "",
       }).unwrap();
 
-      // Disable this answer immediately after successful saving.
+      // Mark this answer as evaluated immediately.
       setEvaluatedByAnswer((prev) => ({
         ...prev,
         [answerId]: true,
@@ -153,7 +189,7 @@ const isAnswerEvaluated = (answer) => {
         [answerId]: message,
       }));
 
-      // The backend confirms that the answer has already been evaluated.
+      // Handle already evaluated response.
       if (
         err?.status === 409 &&
         (err?.data?.alreadyEvaluated === true ||
@@ -172,63 +208,57 @@ const isAnswerEvaluated = (answer) => {
     }
   };
 
-  
+  const handleCompleteEvaluation = async () => {
+    if (!attemptId) {
+      await Swal.fire({
+        icon: "error",
+        title: "Missing Attempt ID",
+        text: "Student attempt ID is missing.",
+        confirmButtonText: "OK",
+      });
 
-const handleCompleteEvaluation = async () => {
-  if (!attemptId) {
-    await Swal.fire({
-      icon: "error",
-      title: "Missing Attempt ID",
-      text: "Student attempt ID is missing.",
-      confirmButtonText: "OK",
-    });
-    return;
-  }
+      return;
+    }
 
-  try {
-    const result = await completeAttemptEvaluation(attemptId).unwrap();
+    try {
+      const result = await completeAttemptEvaluation(attemptId).unwrap();
 
-    await Swal.fire({
-      icon: "success",
-      title: "Evaluation Completed",
-      text:
-        result?.message ||
-        "Attempt evaluation completed successfully.",
-      confirmButtonText: "OK",
-    });
+      const message =
+        result?.message || "Attempt evaluation completed successfully.";
 
-    setCompleteError("");
-    setCompleteSuccess(
-      result?.message ||
-        "Attempt evaluation completed successfully."
-    );
-  } catch (err) {
-    const message =
-      err?.data?.message ||
-      err?.error ||
-      "Failed to complete attempt evaluation.";
+      await Swal.fire({
+        icon: "success",
+        title: "Evaluation Completed",
+        text: message,
+        confirmButtonText: "OK",
+      });
 
-    await Swal.fire({
-      icon: "error",
-      title: "Unable to Complete Evaluation",
-      text: message,
-      confirmButtonText: "OK",
-      confirmButtonColor: "#4f46e5",
-    });
+      setCompleteError("");
+      setCompleteSuccess(message);
+    } catch (err) {
+      const message =
+        err?.data?.message ||
+        err?.error ||
+        "Failed to complete attempt evaluation.";
 
-    setCompleteError(message);
-    setCompleteSuccess("");
-  }
-};
+      await Swal.fire({
+        icon: "error",
+        title: "Unable to Complete Evaluation",
+        text: message,
+        confirmButtonText: "OK",
+        confirmButtonColor: "#4f46e5",
+      });
 
+      setCompleteError(message);
+      setCompleteSuccess("");
+    }
+  };
 
-  // Fetch the selected attempt using its ID from the URL.
   const { data, isLoading, isError, error, refetch } =
     useGetAnswersByAttemptQuery(attemptId, {
       skip: !attemptId,
     });
 
-  // Normalize the API response.
   const answers = useMemo(() => {
     if (Array.isArray(data)) {
       return data;
@@ -252,6 +282,226 @@ const handleCompleteEvaluation = async () => {
 
     return [];
   }, [data]);
+
+  console.log("ATTEMPT ID:", attemptId);
+
+  console.log("API RESPONSE:", data);
+
+  console.log("ANSWERS:", answers);
+
+  // Identify automatically evaluated MCQs and teacher-evaluated answers.
+  const isMCQAnswer = (answer) => {
+    const question = getQuestion(answer);
+
+    const modes = [
+      answer?.answerMode,
+      question?.answerMode,
+      question?.questionType,
+    ].map((mode) => String(mode || "").toUpperCase());
+
+    return (
+      modes.some((mode) => ["MCQ", "MULTIPLE_CHOICE"].includes(mode)) ||
+      !!answer?.mcqEvaluation
+    );
+  };
+
+  const isAnswerEvaluated = (answer) => {
+    if (isMCQAnswer(answer)) {
+      return (
+        answer?.mcqEvaluation?.isCorrect !== undefined ||
+        answer?.evaluation?.evaluationStatus === "EVALUATED" ||
+        answer?.evaluation?.status === "EVALUATED"
+      );
+    }
+
+    return (
+      answer?.evaluationStatus === "EVALUATED" ||
+      answer?.evaluation?.evaluationStatus === "EVALUATED" ||
+      answer?.evaluation?.status === "EVALUATED" ||
+      answer?.answerEvaluation?.evaluationStatus === "EVALUATED" ||
+      answer?.answerEvaluation?.status === "EVALUATED" ||
+      evaluatedByAnswer[answer?._id] === true
+    );
+  };
+
+  const getMarks = (answer) => {
+    const question = getQuestion(answer);
+
+    if (isMCQAnswer(answer)) {
+      return (
+        answer?.mcqEvaluation?.marks ?? answer?.evaluation?.maximumMarks ?? 1
+      );
+    }
+
+    return (
+      answer?.assessmentQuestion?.marks ?? question?.marks ?? answer?.marks ?? 0
+    );
+  };
+
+  const getSection = (answer) => {
+    return (
+      answer?.assessmentQuestion?.section ||
+      answer?.assessmentQuestion?.assessmentSection ||
+      answer?.question?.section ||
+      answer?.section ||
+      null
+    );
+  };
+
+  const getSectionId = (answer) => {
+    const section = getSection(answer);
+
+    if (section && typeof section === "object") {
+      return String(section._id || section.id || section.name || "default");
+    }
+
+    return String(section || "default");
+  };
+
+  const getSectionName = (answer) => {
+    const section = getSection(answer);
+
+    if (section && typeof section === "object") {
+      return (
+        section.sectionName ||
+        section.name ||
+        section.title ||
+        "General Questions"
+      );
+    }
+
+    return section || "General Questions";
+  };
+
+  const getSectionOrder = (answer) => {
+    const section = getSection(answer);
+
+    return Number(
+      section?.order ??
+        section?.sectionOrder ??
+        answer?.assessmentQuestion?.sectionOrder ??
+        answer?.sectionOrder ??
+        0,
+    );
+  };
+  const getQuestionOrder = (answer) => {
+    return Number(
+      answer?.assessmentQuestion?.order ??
+        answer?.assessmentQuestion?.questionOrder ??
+        answer?.assessmentQuestion?.question?.order ??
+        answer?.question?.order ??
+        answer?.order ??
+        answer?.questionOrder ??
+        0,
+    );
+  };
+
+  const groupedAnswers = useMemo(() => {
+    const groups = new Map();
+
+    answers.forEach((answer) => {
+      const sectionId = getSectionId(answer);
+
+      if (!groups.has(sectionId)) {
+        groups.set(sectionId, {
+          id: sectionId,
+          name: getSectionName(answer),
+          order: getSectionOrder(answer),
+          answers: [],
+        });
+      }
+
+      groups.get(sectionId).answers.push(answer);
+    });
+
+    return Array.from(groups.values())
+      .map((section) => ({
+        ...section,
+        answers: [...section.answers].sort(
+          (a, b) => getQuestionOrder(a) - getQuestionOrder(b),
+        ),
+      }))
+      .sort((a, b) => a.order - b.order);
+  }, [answers]);
+
+  // Section-wise navigation component
+  const renderSectionNavigation = () => {
+    if (groupedAnswers.length <= 1) {
+      return null;
+    }
+
+    const currentIndex = Math.min(
+      activeSectionIndex,
+      groupedAnswers.length - 1,
+    );
+
+    const currentSection = groupedAnswers[currentIndex];
+
+    return (
+      <div className="sticky top-0 z-20 rounded-lg border border-gray-200 bg-white/95 p-2 shadow-sm backdrop-blur-sm">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          {/* Previous Section */}
+          <button
+            type="button"
+            disabled={currentIndex === 0}
+            onClick={() =>
+              setActiveSectionIndex((prev) => Math.max(0, prev - 1))
+            }
+            className="inline-flex items-center gap-1 rounded-md border border-gray-300 bg-white px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Previous
+          </button>
+
+          {/* Section Tabs */}
+          <div className="flex flex-1 flex-wrap justify-center gap-1.5">
+            {groupedAnswers.map((section, index) => (
+              <button
+                key={section.id}
+                type="button"
+                onClick={() => setActiveSectionIndex(index)}
+                aria-current={currentIndex === index ? "step" : undefined}
+                className={`rounded-md px-3 py-2 text-xs font-semibold transition ${
+                  currentIndex === index
+                    ? "bg-indigo-600 text-white shadow-sm"
+                    : "border border-gray-200 bg-gray-50 text-gray-600 hover:border-indigo-300 hover:bg-indigo-50"
+                }`}
+              >
+                {section.name}
+                <span className="ml-1 opacity-75">
+                  ({section.answers.length})
+                </span>
+              </button>
+            ))}
+          </div>
+
+          {/* Next Section */}
+          <button
+            type="button"
+            disabled={currentIndex === groupedAnswers.length - 1}
+            onClick={() =>
+              setActiveSectionIndex((prev) =>
+                Math.min(groupedAnswers.length - 1, prev + 1),
+              )
+            }
+            className="inline-flex items-center gap-1 rounded-md bg-indigo-600 px-3 py-2 text-xs font-semibold text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Next
+            <span>→</span>
+          </button>
+        </div>
+
+        {/* Current Section Information */}
+        <div className="mt-2 flex items-center justify-between border-t border-gray-100 pt-2 text-xs text-gray-500">
+          <span>{currentSection.name}</span>
+
+          <span>
+            Section {currentIndex + 1} of {groupedAnswers.length}
+          </span>
+        </div>
+      </div>
+    );
+  };
 
   const getModeLabel = (mode) => {
     const labels = {
@@ -304,15 +554,6 @@ const handleCompleteEvaluation = async () => {
     }
   };
 
-  const getQuestion = (answer) => {
-    return (
-      answer?.assessmentQuestion?.question ||
-      answer?.question ||
-      answer?.assessmentQuestion ||
-      null
-    );
-  };
-
   const getQuestionText = (answer) => {
     const question = getQuestion(answer);
 
@@ -334,32 +575,10 @@ const handleCompleteEvaluation = async () => {
     );
   };
 
-  const getMarks = (answer) => {
-    const question = getQuestion(answer);
-
-    return (
-      answer?.assessmentQuestion?.marks ?? question?.marks ?? answer?.marks ?? 0
-    );
-  };
-
   const getImageUrl = (value) => {
-    if (!value) {
-      return null;
-    }
+    if (!value) return null;
 
-    if (value.url) {
-      return value.url;
-    }
-
-    if (value.previewUrl) {
-      return value.previewUrl;
-    }
-
-    if (value.dataUrl) {
-      return value.dataUrl;
-    }
-
-    return null;
+    return value.url || value.previewUrl || value.dataUrl || null;
   };
 
   const renderText = (value) => {
@@ -513,70 +732,226 @@ const handleCompleteEvaluation = async () => {
   const renderMcq = (answer) => {
     const question = getQuestion(answer);
 
-    const options = question?.options || question?.mcqOptions || [];
+    const options = question?.options || [];
 
-    const selected = answer?.selectedOption ?? answer?.answer;
+    const mcq = answer?.mcqEvaluation || {};
 
-    if (!options.length) {
+    const normalize = (value) => {
+      if (value === null || value === undefined) return "";
+
+      if (typeof value === "object") {
+        return String(value.value ?? value.label ?? value.text ?? "")
+          .trim()
+          .toLowerCase();
+      }
+
+      return String(value).trim().toLowerCase();
+    };
+
+    const getOptionValue = (option) => {
+      if (typeof option === "string") return option;
+
+      return option?.value ?? option?.label ?? option?.text ?? "";
+    };
+
+    const getOptionLabel = (option, index) => {
+      if (typeof option === "string") {
+        return String.fromCharCode(65 + index);
+      }
+
+      return option?.label || String.fromCharCode(65 + index);
+    };
+
+    // Answers returned by the backend.
+    const studentAnswer =
+      mcq.studentAnswer ?? answer?.selectedOption ?? answer?.answer ?? null;
+
+    const correctAnswer = mcq.correctAnswer ?? question?.correctAnswer ?? null;
+
+    // Match options using their actual values.
+    const findOption = (value) => {
+      const normalized = normalize(value);
+
+      if (!normalized) return null;
+
       return (
-        <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">
-            Selected Option
-          </p>
-
-          <p className="mt-2 text-lg font-bold text-gray-800">
-            {selected || "No option selected"}
-          </p>
-        </div>
-      );
-    }
-
-    return (
-      <div className="space-y-3">
-        {options.map((option, index) => {
-          const optionValue =
-            typeof option === "string"
-              ? option
-              : (option?.value ?? option?.text ?? option?.label ?? "");
-
-          const optionLabel =
-            typeof option === "string"
-              ? String.fromCharCode(65 + index)
-              : option?.label || String.fromCharCode(65 + index);
-
-          const isSelected =
-            String(selected) === String(optionValue) ||
-            String(selected) === String(optionLabel);
+        options.find((option, index) => {
+          const optionValue = getOptionValue(option);
+          const optionLabel = getOptionLabel(option, index);
 
           return (
-            <div
-              key={index}
-              className={`flex items-start gap-3 rounded-xl border p-4 ${
-                isSelected
-                  ? "border-blue-400 bg-blue-50 ring-1 ring-blue-200"
-                  : "border-gray-200 bg-white"
-              }`}
-            >
+            normalized === normalize(optionValue) ||
+            normalized === normalize(optionLabel)
+          );
+        }) ?? null
+      );
+    };
+
+    const selectedOption = findOption(studentAnswer);
+    const correctOption = findOption(correctAnswer);
+
+    const isAnswered = mcq.isAnswered ?? normalize(studentAnswer) !== "";
+
+    const isCorrect =
+      mcq.isCorrect ??
+      (isAnswered &&
+        selectedOption !== null &&
+        correctOption !== null &&
+        normalize(getOptionValue(selectedOption)) ===
+          normalize(getOptionValue(correctOption)));
+
+    const awardedMarks = mcq.awardedMarks ?? (isCorrect ? 1 : 0);
+
+    const maximumMarks = mcq.marks ?? 1;
+
+    return (
+      <div className="space-y-2">
+        {/* Available options */}
+        <div className="space-y-1.5">
+          {options.map((option, index) => {
+            const label = getOptionLabel(option, index);
+            const value = getOptionValue(option);
+
+            const isSelected =
+              selectedOption !== null &&
+              normalize(value) === normalize(getOptionValue(selectedOption));
+
+            const isCorrectOption =
+              correctOption !== null &&
+              normalize(value) === normalize(getOptionValue(correctOption));
+
+            let style = "border-gray-200 bg-white";
+
+            if (isCorrectOption) {
+              style = "border-green-400 bg-green-50";
+            } else if (isSelected) {
+              style = "border-red-400 bg-red-50";
+            }
+
+            return (
               <div
-                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold ${
-                  isSelected
-                    ? "bg-blue-600 text-white"
-                    : "bg-gray-100 text-gray-600"
-                }`}
+                key={index}
+                className={`flex items-start gap-2 rounded-lg border px-3 py-2 ${style}`}
               >
-                {optionLabel}
-              </div>
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-100 font-bold">
+                  {label}
+                </div>
 
-              <div className="flex-1 pt-1">
-                <span className="text-sm text-gray-700">{optionValue}</span>
-              </div>
+                <div className="flex-1">
+                  <MathText text={String(value)} />
 
-              {isSelected && (
-                <CheckCircle2 className="mt-1 h-5 w-5 text-blue-600" />
+                  {isSelected && (
+                    <p className="mt-2 text-xs font-bold text-blue-700">
+                      STUDENT'S SELECTED ANSWER
+                    </p>
+                  )}
+
+                  {isCorrectOption && (
+                    <p className="mt-2 text-xs font-bold text-green-700">
+                      CORRECT ANSWER
+                    </p>
+                  )}
+                </div>
+
+                {isCorrectOption && (
+                  <CheckCircle2 className="h-5 w-5 text-green-600" />
+                )}
+
+                {isSelected && !isCorrectOption && (
+                  <XCircle className="h-5 w-5 text-red-500" />
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Answer summary */}
+        <div className="grid gap-4 rounded-xl border bg-gray-50 p-4 sm:grid-cols-2">
+          <div>
+            <p className="text-sm font-bold text-gray-700">
+              Student's Selected Answer
+            </p>
+
+            <div className="mt-2 text-sm text-blue-700">
+              {selectedOption ? (
+                <div className="flex items-start gap-2">
+                  <span className="shrink-0 font-bold">
+                    {getOptionLabel(
+                      selectedOption,
+                      options.indexOf(selectedOption),
+                    )}
+                    .
+                  </span>
+
+                  <div className="min-w-0">
+                    <MathText text={String(getOptionValue(selectedOption))} />
+                  </div>
+                </div>
+              ) : isAnswered ? (
+                <MathText text={String(studentAnswer)} />
+              ) : (
+                "Not Answered"
               )}
             </div>
-          );
-        })}
+          </div>
+
+          <div>
+            <p className="text-sm font-bold text-gray-700">Correct Answer</p>
+
+            <div className="mt-2 text-sm font-bold text-green-700">
+              {correctOption ? (
+                <div className="flex items-start gap-2">
+                  <span className="shrink-0">
+                    {getOptionLabel(
+                      correctOption,
+                      options.indexOf(correctOption),
+                    )}
+                    .
+                  </span>
+
+                  <div className="min-w-0">
+                    <MathText text={String(getOptionValue(correctOption))} />
+                  </div>
+                </div>
+              ) : correctAnswer ? (
+                <MathText text={String(correctAnswer)} />
+              ) : (
+                "Not Available"
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Automated result */}
+        <div
+          className={`rounded-xl border p-4 ${
+            isCorrect
+              ? "border-green-300 bg-green-50"
+              : "border-red-200 bg-red-50"
+          }`}
+        >
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              {isCorrect ? (
+                <CheckCircle2 className="h-5 w-5 text-green-600" />
+              ) : (
+                <XCircle className="h-5 w-5 text-red-500" />
+              )}
+
+              <span className="font-bold text-gray-800">
+                {!isAnswered
+                  ? "Not Answered"
+                  : isCorrect
+                    ? "Correct Answer"
+                    : "Incorrect Answer"}
+              </span>
+            </div>
+
+            <span className="font-bold text-gray-800">
+              {awardedMarks} / {maximumMarks} Marks
+            </span>
+          </div>
+        </div>
       </div>
     );
   };
@@ -667,6 +1042,202 @@ const handleCompleteEvaluation = async () => {
     );
   };
 
+  const getSubmittedAt = (answer) => {
+    return (
+      answer?.submittedAt || answer?.updatedAt || answer?.createdAt || null
+    );
+  };
+
+  const getAnswerStatusLabel = (answer) => {
+    if (isAnswerEvaluated(answer)) {
+      return "Evaluated";
+    }
+
+    return getStatusStyle(answer?.status).label;
+  };
+
+  const renderStudentAnswerSection = (answer) => {
+    return (
+      <section className="overflow-hidden rounded-lg border border-gray-200 bg-white">
+        <div className="border-b border-gray-200 bg-gray-50 px-3 py-2">
+          <div className="flex items-center gap-2">
+            <FileText className="h-4 w-4 text-indigo-600" />
+
+            <h3 className="text-xs font-bold uppercase tracking-wide text-gray-600">
+              Student Answer
+            </h3>
+          </div>
+        </div>
+
+        <div className="p-3">{renderAnswer(answer)}</div>
+      </section>
+    );
+  };
+
+  const renderSubmittedInformation = (answer) => {
+    const submittedAt = getSubmittedAt(answer);
+    const statusInfo = getStatusStyle(answer?.status);
+    const StatusIcon = statusInfo.icon;
+
+    return (
+      <div className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-md border border-gray-200 bg-gray-50 px-3 py-2">
+        {/* Submission Status */}
+        <div className="flex items-center gap-2">
+          <StatusIcon className="h-4 w-4 text-indigo-600" />
+
+          <span className="text-xs font-semibold text-gray-600">Status:</span>
+
+          <span className="text-xs font-bold text-gray-800">
+            {getAnswerStatusLabel(answer)}
+          </span>
+        </div>
+
+        {/* Submitted Date */}
+        <div className="flex items-center gap-1.5">
+          <ClipboardCheck className="h-4 w-4 text-gray-400" />
+
+          <span className="text-xs text-gray-500">Submitted:</span>
+
+          <span className="text-xs font-semibold text-gray-700">
+            {submittedAt
+              ? new Date(submittedAt).toLocaleString()
+              : "Not available"}
+          </span>
+        </div>
+      </div>
+    );
+  };
+
+  const renderTeacherEvaluation = (answer, maxMarks) => {
+    const answerId = answer?._id;
+
+    const evaluated = isAnswerEvaluated(answer);
+
+    const saving = savingByAnswer[answerId];
+
+    const errorMessage = saveError[answerId];
+
+    const successMessage = saveSuccess[answerId];
+
+    const evaluation = answer?.evaluation || answer?.answerEvaluation || null;
+
+    const existingMarks = evaluation?.marksAwarded ?? evaluation?.marks ?? "";
+
+    const existingFeedback = evaluation?.feedback ?? "";
+
+    return (
+      <section className="overflow-hidden rounded-2xl border border-indigo-200 bg-indigo-50/40">
+        <div className="border-b border-indigo-200 bg-white px-5 py-4">
+          <div className="flex items-center gap-2">
+            <Pencil className="h-5 w-5 text-indigo-600" />
+
+            <h3 className="text-sm font-bold uppercase tracking-wide text-gray-600">
+              {isMCQAnswer(answer)
+                ? "AUTOMATED EVALUATION"
+                : "TEACHER EVALUATION"}
+            </h3>
+          </div>
+        </div>
+
+        <div className="space-y-5 p-5">
+          {/* Marks */}
+          <div>
+            <label className="mb-2 block text-sm font-bold text-gray-700">
+              Awarded Marks
+            </label>
+
+            <div className="flex items-center gap-3">
+              <input
+                type="number"
+                min="0"
+                max={maxMarks}
+                step="any"
+                value={
+                  evaluated ? existingMarks : (marksByAnswer[answerId] ?? "")
+                }
+                onChange={(e) => handleMarksChange(answerId, e.target.value)}
+                disabled={evaluated || saving}
+                placeholder="Enter awarded marks"
+                className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 disabled:bg-gray-100"
+              />
+
+              <span className="shrink-0 text-sm font-bold text-gray-600">
+                / {maxMarks}
+              </span>
+            </div>
+          </div>
+
+          {/* Feedback */}
+          <div>
+            <label className="mb-2 block text-sm font-bold text-gray-700">
+              Teacher Feedback
+            </label>
+
+            <textarea
+              rows={4}
+              value={
+                evaluated
+                  ? existingFeedback
+                  : (feedbackByAnswer[answerId] ?? "")
+              }
+              onChange={(e) => handleFeedbackChange(answerId, e.target.value)}
+              disabled={evaluated || saving}
+              placeholder="Enter feedback for the student..."
+              className="w-full resize-y rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 disabled:bg-gray-100"
+            />
+          </div>
+
+          {/* Error */}
+          {errorMessage && (
+            <div
+              role="alert"
+              className="rounded-xl border border-red-300 bg-red-50 p-4 text-sm font-semibold text-red-700"
+            >
+              {errorMessage}
+            </div>
+          )}
+
+          {/* Success */}
+          {successMessage && (
+            <div
+              role="status"
+              className="rounded-xl border border-green-300 bg-green-50 p-4 text-sm font-semibold text-green-700"
+            >
+              Evaluation saved successfully.
+            </div>
+          )}
+
+          {/* Evaluated */}
+          {evaluated ? (
+            <div className="flex items-center gap-2 rounded-xl border border-green-300 bg-green-50 p-4 text-sm font-bold text-green-700">
+              <CheckCircle2 className="h-5 w-5" />
+              This answer has already been evaluated.
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => handleSaveEvaluation(answer, maxMarks)}
+              disabled={saving || !answerId}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-6 py-3 text-sm font-bold text-white shadow-md transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+            >
+              {saving ? (
+                <>
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                  Saving Evaluation...
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="h-5 w-5" />
+                  Save Evaluation
+                </>
+              )}
+            </button>
+          )}
+        </div>
+      </section>
+    );
+  };
+
   const renderAnswer = (answer) => {
     const mode = answer?.answerMode;
 
@@ -714,33 +1285,21 @@ const handleCompleteEvaluation = async () => {
     }
   };
 
-  // const handleEdit = (answer) => {
-  //   const currentAttemptId =
-  //     answer?.attempt?._id ||
-  //     answer?.attempt ||
-  //     attemptId;
+  const renderFormattedOption = (option) => {
+    if (!option) {
+      return <span className="text-gray-400">Not available</span>;
+    }
 
-  //   const currentAssessmentQuestionId =
-  //     answer?.assessmentQuestion?._id ||
-  //     answer?.assessmentQuestion ||
-  //     assessmentQuestionId;
+    return (
+      <div className="flex items-start gap-2">
+        <span className="shrink-0 font-bold">{option.label}.</span>
 
-  //   if (
-  //     currentAttemptId &&
-  //     currentAssessmentQuestionId
-  //   ) {
-  //     navigate(
-  //       `/student/assessment/${currentAttemptId}/question/${currentAssessmentQuestionId}`,
-  //     );
-  //     return;
-  //   }
-
-  //   if (currentAttemptId) {
-  //     navigate(
-  //       `/student/assessment/${currentAttemptId}`,
-  //     );
-  //   }
-  // };
+        <div className="min-w-0">
+          <MathText text={option.value} />
+        </div>
+      </div>
+    );
+  };
 
   if (isLoading) {
     return (
@@ -804,6 +1363,7 @@ const handleCompleteEvaluation = async () => {
     <div className="min-h-screen bg-gradient-to-br from-slate-100 via-blue-50 to-indigo-100 px-4 py-8 md:px-6">
       <div className="mx-auto max-w-6xl">
         <div className="overflow-hidden rounded-3xl border border-white/40 bg-white/80 shadow-2xl backdrop-blur-lg">
+          {/* Header */}
           <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 px-6 py-7 text-white md:px-8">
             <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-4">
@@ -815,10 +1375,6 @@ const handleCompleteEvaluation = async () => {
                   <h1 className="text-2xl font-bold md:text-3xl">
                     Student Answer Details
                   </h1>
-
-                  {/* <p className="mt-1 text-sm text-blue-100">
-                    Review and edit your answer
-                  </p> */}
                 </div>
               </div>
 
@@ -834,12 +1390,14 @@ const handleCompleteEvaluation = async () => {
                   className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-500 px-5 py-3 text-sm font-bold text-white shadow-md transition hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <CheckCircle2 className="h-5 w-5" />
+
                   {isCompleting ? "Completing..." : "COMPLETED"}
                 </button>
               </div>
             </div>
           </div>
 
+          {/* Answers container */}
           <div className="p-5 md:p-8">
             {answers.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-gray-300 bg-gray-50 p-10 text-center">
@@ -854,253 +1412,194 @@ const handleCompleteEvaluation = async () => {
                 </p>
               </div>
             ) : (
-              <div className="space-y-8">
-                {answers.map((answer, index) => {
-                  const statusInfo = getStatusStyle(answer?.status);
+              <div className="space-y-3">
+                {/* Top Section Navigation */}
+                {renderSectionNavigation()}
 
-                  const StatusIcon = statusInfo.icon;
+                {/* Display only the selected section */}
+                {groupedAnswers.map((section, sectionIndex) =>
+                  sectionIndex ===
+                  Math.min(activeSectionIndex, groupedAnswers.length - 1) ? (
+                    <section key={section.id} className="space-y-2">
+                      {/* Section Header */}
+                      <div className="overflow-hidden rounded-lg border border-indigo-200 bg-indigo-50">
+                        <div className="flex items-center justify-between gap-2 px-3 py-2">
+                          <div>
+                            <p className="text-[10px] font-bold uppercase tracking-wide text-indigo-500">
+                              Assessment Section
+                            </p>
 
-                  const questionText = getQuestionText(answer);
-
-                  const questionNumber = getQuestionNumber(answer, index);
-
-                  const marks = getMarks(answer);
-
-                  return (
-                    <article
-                      key={answer?._id || `${questionNumber}-${index}`}
-                      className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm"
-                    >
-                      <div className="border-b border-gray-200 bg-gradient-to-r from-gray-50 to-blue-50 px-5 py-5 md:px-6">
-                        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                          <div className="flex items-start gap-4">
-                            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-sm font-bold text-white shadow-md">
-                              {questionNumber}
-                            </div>
-
-                            <div>
-                              <div className="flex flex-wrap items-center gap-2">
-                                <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-700">
-                                  {getModeLabel(answer?.answerMode)}
-                                </span>
-
-                                <span className="rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-semibold text-gray-600">
-                                  {marks} {marks === 1 ? "Mark" : "Marks"}
-                                </span>
-
-                                <span
-                                  className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold ${statusInfo.className}`}
-                                >
-                                  <StatusIcon className="h-3.5 w-3.5" />
-                                  {statusInfo.label}
-                                </span>
-                              </div>
-
-                              <h2 className="mt-3 text-lg font-bold leading-7 text-gray-800">
-                                Question {questionNumber}
-                              </h2>
-                            </div>
+                            <h2 className="text-sm font-bold text-indigo-900">
+                              {section.name}
+                            </h2>
                           </div>
+
+                          <span className="rounded-md bg-white px-2 py-1 text-xs font-semibold text-indigo-700">
+                            {section.answers.length} Questions
+                          </span>
                         </div>
                       </div>
 
-                      <div className="p-5 md:p-6">
-                        <section className="rounded-2xl border border-gray-200 bg-gray-50/70">
-                          <div className="border-b border-gray-200 bg-white px-5 py-4">
-                            <div className="flex items-center gap-2">
-                              <ListChecks className="h-5 w-5 text-blue-600" />
+                      {/* Questions inside this section */}
+                      <div className="space-y-3">
+                        {section.answers.map((answer, index) => {
+                          const statusInfo = getStatusStyle(answer?.status);
 
-                              <h3 className="text-sm font-bold uppercase tracking-wide text-gray-500">
-                                Question
-                              </h3>
-                            </div>
-                          </div>
+                          const StatusIcon = statusInfo.icon;
 
-                          <div className="p-5">
-                            <div className="text-base font-semibold leading-7 text-gray-800">
-                              <MathText text={questionText} />
-                            </div>
-                          </div>
-                        </section>
+                          const questionText = getQuestionText(answer);
 
-                        <section className="mt-5 rounded-2xl border border-gray-200 bg-white">
-                          <div className="flex flex-col gap-3 border-b border-gray-200 bg-gray-50 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-                            <div className="flex items-center gap-2">
-                              {answer?.answerMode === "TABLE" ||
-                              answer?.answerMode === "MATH_TABLE" ? (
-                                <Table2 className="h-5 w-5 text-blue-600" />
-                              ) : answer?.answerMode === "CODE" ? (
-                                <Code2 className="h-5 w-5 text-blue-600" />
-                              ) : answer?.answerMode === "IMAGE" ||
-                                answer?.answerMode === "DRAWING" ? (
-                                <ImageIcon className="h-5 w-5 text-blue-600" />
-                              ) : (
-                                <FileText className="h-5 w-5 text-blue-600" />
-                              )}
+                          // Question numbering restarts inside each section.
+                          const questionNumber =
+                            getQuestionOrder(answer) || index + 1;
 
-                              <h3 className="text-sm font-bold uppercase tracking-wide text-gray-500">
-                                Student Answer
-                              </h3>
-                            </div>
+                          const marks = getMarks(answer);
 
-                            {answer?.lastSavedAt && (
-                              <span className="text-xs text-gray-400">
-                                Last saved{" "}
-                                {new Date(answer.lastSavedAt).toLocaleString()}
-                              </span>
-                            )}
-                          </div>
+                          const answerId = answer?._id;
 
-                          <div className="p-5">
-                            <div className="rounded-xl border border-gray-200 bg-gray-50/70 p-4 md:p-5">
-                              {renderAnswer(answer)}
-                            </div>
-                          </div>
-                        </section>
+                          const evaluated = isAnswerEvaluated(answer);
 
-                        {answer?.submittedAt && (
-                          <div className="mt-5 flex items-start gap-3 rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-700">
-                            <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0" />
+                          return (
+                            <article
+                              key={answerId || `${section.id}-${index}`}
+                              className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm"
+                            >
+                              {/* Question header */}
+                              <div className="border-b border-gray-200 bg-gray-50 px-3 py-2">
+                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                  <div className="flex items-center gap-2">
+                                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-blue-600 text-xs font-bold text-white">
+                                      {questionNumber}
+                                    </div>
 
-                            <div>
-                              <p className="font-semibold">Answer submitted</p>
+                                    <div className="flex flex-wrap items-center gap-2">
+                                      <span className="text-sm font-bold text-gray-800">
+                                        Question {questionNumber}
+                                      </span>
 
-                              <p className="mt-1 text-green-600">
-                                {new Date(answer.submittedAt).toLocaleString()}
-                              </p>
-                            </div>
-                          </div>
-                        )}
+                                      <span className="rounded bg-blue-100 px-2 py-0.5 text-[10px] font-semibold text-blue-700">
+                                        {getModeLabel(answer?.answerMode)}
+                                      </span>
 
-                        {/* Teacher evaluation section */}
-                        <section className="mt-5 rounded-2xl border border-indigo-200 bg-indigo-50/50 p-5">
-                          <div className="mb-4 flex items-center gap-2">
-                            <ClipboardCheck className="h-5 w-5 text-indigo-600" />
-                            <h3 className="text-sm font-bold uppercase tracking-wide text-indigo-700">
-                              Teacher Evaluation
-                            </h3>
-                          </div>
+                                      <span className="rounded bg-gray-100 px-2 py-0.5 text-[10px] font-semibold text-gray-600">
+                                        {marks} {marks === 1 ? "Mark" : "Marks"}
+                                      </span>
 
-                          <div className="grid gap-5 md:grid-cols-2">
-                            <div>
-                              <label
-                                htmlFor={`marks-${answer._id}`}
-                                className="mb-2 block text-sm font-semibold text-gray-700"
-                              >
-                                Marks Awarded (Maximum: {marks})
-                              </label>
+                                      <span
+                                        className={`rounded border px-2 py-0.5 text-[10px] font-semibold ${statusInfo.className}`}
+                                      >
+                                        {statusInfo.label}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
 
-                              <input
-                                id={`marks-${answer._id}`}
-                                type="number"
-                                min="0"
-                                max={marks}
-                                step="0.5"
-                                value={marksByAnswer[answer._id] ?? ""}
-                                onChange={(e) =>
-                                  handleMarksChange(answer._id, e.target.value)
-                                }
-                                className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
-                                placeholder={`Enter marks out of ${marks}`}
-                              />
-                            </div>
+                              {/* IMPORTANT:
+                  Keep your existing question, student answer,
+                  submitted information and teacher evaluation JSX here.
+              */}
 
-                            <div>
-                              <label
-                                htmlFor={`feedback-${answer._id}`}
-                                className="mb-2 block text-sm font-semibold text-gray-700"
-                              >
-                                Feedback (Optional)
-                              </label>
+                              <div className="space-y-2 p-2 md:p-3">
+                                {/* Question */}
+                                <section className="rounded-lg border border-gray-200 bg-gray-50">
+                                  <div className="border-b border-gray-200 bg-white px-3 py-1.5">
+                                    <h3 className="text-xs font-bold text-gray-600">
+                                      Question
+                                    </h3>
+                                  </div>
 
-                              <textarea
-                                id={`feedback-${answer._id}`}
-                                rows={3}
-                                value={feedbackByAnswer[answer._id] ?? ""}
-                                onChange={(e) =>
-                                  handleFeedbackChange(
-                                    answer._id,
-                                    e.target.value,
-                                  )
-                                }
-                                className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
-                                placeholder="Provide feedback to the student..."
-                              />
-                            </div>
-                          </div>
+                                  <div className="px-3 py-2">
+                                    <div className="text-sm font-medium leading-6 text-gray-800">
+                                      <MathText text={questionText} />
+                                    </div>
+                                  </div>
+                                </section>
 
-                          {saveError[answer._id] && (
-                            <p className="mt-3 text-sm font-medium text-red-600">
-                              {saveError[answer._id]}
-                            </p>
-                          )}
+                                <div className="space-y-3">
+                                  {/* Descriptive Questions */}
+                                  {!isMCQAnswer(answer) && (
+                                    <div className="grid grid-cols-1 items-start gap-3 xl:grid-cols-[minmax(0,1.6fr)_minmax(280px,0.8fr)]">
+                                      {/* Student Answer and Submission Information */}
+                                      <div className="min-w-0 space-y-2">
+                                        {renderStudentAnswerSection(answer)}
 
-                          {saveSuccess[answer._id] && (
-                            <p className="mt-3 flex items-center gap-2 text-sm font-medium text-green-700">
-                              <CheckCircle2 className="h-4 w-4" />
-                              Evaluation saved successfully.
-                            </p>
-                          )}
+                                        {renderSubmittedInformation(answer)}
+                                      </div>
 
-                          
+                                      {/* Sticky Teacher Evaluation */}
+                                      <div className="min-w-0 xl:sticky xl:top-20">
+                                        {renderTeacherEvaluation(answer, marks)}
+                                      </div>
+                                    </div>
+                                  )}
 
+                                  {/* MCQ: Automated Evaluation Only */}
+                                  {isMCQAnswer(answer) && (
+                                    <section className="overflow-hidden rounded-lg border border-blue-200 bg-white">
+                                      <div className="flex items-center justify-between border-b border-blue-100 bg-blue-50 px-3 py-2">
+                                        <h3 className="text-xs font-bold uppercase text-blue-700">
+                                          Automated Evaluation
+                                        </h3>
 
-{!isAnswerEvaluated(answer) && (
-  <button
-    type="button"
-    disabled={savingByAnswer[answer._id] === true}
-    onClick={() =>
-      handleSaveEvaluation(answer, Number(marks) || 0)
-    }
-    className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white shadow-md transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
-  >
-    <Save className="h-4 w-4" />
-    {savingByAnswer[answer._id] ? "Saving..." : "EVALUATE"}
-  </button>
-)}
+                                        <CheckCircle2 className="h-4 w-4 text-blue-600" />
+                                      </div>
 
-
-                        </section>
+                                      <div className="p-3">
+                                        {renderMcq(answer)}
+                                      </div>
+                                    </section>
+                                  )}
+                                </div>
+                              </div>
+                            </article>
+                          );
+                        })}
                       </div>
-                    </article>
-                  );
-                })}
+                    </section>
+                  ) : null,
+                )}
+
+                {/* Bottom Section Navigation */}
+                {renderSectionNavigation()}
               </div>
             )}
 
+            {/* Completion messages */}
             <div className="mt-8 space-y-4">
-              
-{completeError && (
-  <div
-    role="alert"
-    aria-live="assertive"
-    className="mb-4 rounded-xl border-2 border-red-300 bg-red-50 px-5 py-4 text-sm font-semibold text-red-800 shadow-sm"
-  >
-    <div className="flex items-start gap-3">
-      <XCircle className="h-5 w-5 shrink-0 text-red-600" />
+              {completeError && (
+                <div
+                  role="alert"
+                  aria-live="assertive"
+                  className="mb-4 rounded-xl border-2 border-red-300 bg-red-50 px-5 py-4 text-sm font-semibold text-red-800 shadow-sm"
+                >
+                  <div className="flex items-start gap-3">
+                    <XCircle className="h-5 w-5 shrink-0 text-red-600" />
 
-      <div>
-        <p className="font-bold">Unable to complete evaluation</p>
-        <p className="mt-1">{completeError}</p>
-      </div>
-    </div>
-  </div>
-)}
+                    <div>
+                      <p className="font-bold">Unable to complete evaluation</p>
 
-{completeSuccess && (
-  <div
-    role="status"
-    aria-live="polite"
-    className="mb-4 rounded-xl border border-green-300 bg-green-50 px-5 py-4 text-sm font-semibold text-green-800"
-  >
-    <div className="flex items-center gap-2">
-      <CheckCircle2 className="h-5 w-5 shrink-0" />
-      <span>{completeSuccess}</span>
-    </div>
-  </div>
-)}
+                      <p className="mt-1">{completeError}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
 
+              {completeSuccess && (
+                <div
+                  role="status"
+                  aria-live="polite"
+                  className="mb-4 rounded-xl border border-green-300 bg-green-50 px-5 py-4 text-sm font-semibold text-green-800"
+                >
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="h-5 w-5 shrink-0" />
 
+                    <span>{completeSuccess}</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Footer buttons */}
               <div className="flex flex-col-reverse justify-between gap-4 sm:flex-row">
                 <button
                   type="button"
@@ -1118,6 +1617,7 @@ const handleCompleteEvaluation = async () => {
                   className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-7 py-3 font-bold text-white shadow-md transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <CheckCircle2 className="h-5 w-5" />
+
                   {isCompleting ? "Completing..." : "COMPLETED"}
                 </button>
               </div>

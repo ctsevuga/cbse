@@ -125,31 +125,50 @@ const getResult = async (resultId, userSchool) => {
   const result = await Result.findById(resultId)
     .populate(
       "assessment",
-      "school academicYear class section stream subject title assessmentType totalMarks totalQuestions status",
+      "school academicYear class section stream subject title assessmentType totalMarks totalQuestions status"
     )
     .populate(
       "student",
-      "user school admissionNumber academicYear class section stream",
+      "user school admissionNumber academicYear class section stream"
     );
 
   if (!result) {
     throwError("Result not found", 404);
   }
 
+  // Normalize IDs (works with ObjectId and populated documents)
+  const getId = (value) => {
+    if (!value) return null;
+
+    return String(value._id || value);
+  };
+
+  const currentSchoolId = getId(userSchool);
+
+  const studentSchoolId = getId(
+    result.student?.school
+  );
+
+  const assessmentSchoolId = getId(
+    result.assessment?.school
+  );
+
+  // Validate student ownership
   if (
-    !result.student?.school ||
-    result.student.school.toString() !== userSchool.toString()
+    !studentSchoolId ||
+    studentSchoolId !== currentSchoolId
   ) {
     throwError("Not authorized for this school", 403);
   }
 
+  // Validate assessment ownership
   if (
-    result.assessment?.school &&
-    result.assessment.school.toString() !== userSchool.toString()
+    !assessmentSchoolId ||
+    assessmentSchoolId !== currentSchoolId
   ) {
     throwError(
       "Result does not belong to your school",
-      403,
+      403
     );
   }
 
@@ -940,15 +959,18 @@ const getResultDetailById =
 
 const getResultDetailsByResult =
   asyncHandler(async (req, res) => {
-    const userSchool =
-      getUserSchool(req);
 
-    const result =
-      await getResult(
-        req.params.resultId,
-        userSchool,
-      );
+    // School context from resolveSchool middleware
+    const schoolId = getUserSchool(req);
 
+    // Validate and retrieve result belonging
+    // to the current school
+    const result = await getResult(
+      req.params.resultId,
+      schoolId,
+    );
+
+    // Retrieve question-level result details
     const resultDetails =
       await populateResultDetail(
         ResultDetail.find({
@@ -958,9 +980,11 @@ const getResultDetailsByResult =
         }),
       );
 
-    res.json(
-      await resultDetails,
-    );
+    res.status(200).json({
+      result,
+      total: resultDetails.length,
+      resultDetails,
+    });
   });
 
 /**

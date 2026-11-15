@@ -1029,6 +1029,79 @@ export const getAttemptsForEvaluation = async (req, res) => {
   }
 };
 
+export const getAssessmentAttemptsForTeacher = async (req, res) => {
+  try {
+    const { assessment } = req.query;
+    const schoolId = getUserSchool(req);
+
+    if (!schoolId) {
+      return res.status(400).json({
+        success: false,
+        message: "School could not be identified.",
+      });
+    }
+
+    if (!assessment || !mongoose.isValidObjectId(assessment)) {
+      return res.status(400).json({
+        success: false,
+        message: "A valid assessment ID is required.",
+      });
+    }
+
+    // Verify that the assessment belongs to this school.
+    const assessmentRecord = await Assessment.findOne({
+      _id: assessment,
+      school: schoolId,
+    }).select("_id title name assessmentName");
+
+    if (!assessmentRecord) {
+      return res.status(404).json({
+        success: false,
+        message: "Assessment not found in this school.",
+      });
+    }
+
+    // Fetch attempts belonging to the selected assessment.
+    const attempts = await StudentAttempt.find({
+      assessment: assessmentRecord._id,
+      status: {
+        $in: ["SUBMITTED", "EVALUATING"],
+      },
+    })
+      .populate({
+        path: "student",
+        select: "name firstName middleName lastName studentName user",
+        populate: {
+          path: "user",
+          select: "name firstName lastName",
+        },
+      })
+      .populate({
+        path: "assessment",
+        select: "title name assessmentName",
+      })
+      .sort({ submittedAt: -1, createdAt: -1 })
+      .lean();
+
+    return res.status(200).json({
+      success: true,
+      message: "Assessment attempts fetched successfully.",
+      count: attempts.length,
+      data: attempts,
+    });
+  } catch (error) {
+    console.error(
+      "Error fetching assessment attempts for teacher:",
+      error,
+    );
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch assessment attempts.",
+      error: error.message,
+    });
+  }
+};
 
 export const getAttemptsForReview = async (req, res) => {
   try {
@@ -1086,6 +1159,76 @@ console.log(assessment, student)
     return res.status(500).json({
       success: false,
       message: "Failed to fetch attempts for review.",
+      error: error.message,
+    });
+  }
+};
+
+
+export const getAttemptsForReviewByAssessment = async (req, res) => {
+  try {
+    const { assessment } = req.query;
+    const schoolId = getUserSchool(req);
+
+    // Ensure the school can be identified.
+    if (!schoolId) {
+      return res.status(400).json({
+        success: false,
+        message: "School could not be identified.",
+      });
+    }
+
+    // Only the assessment ID is required.
+    if (!assessment) {
+      return res.status(400).json({
+        success: false,
+        message: "Assessment ID is required.",
+      });
+    }
+
+    // Verify that the assessment belongs to this school.
+    const schoolAssessment = await Assessment.findOne({
+      _id: assessment,
+      school: schoolId,
+    }).select("_id");
+
+    if (!schoolAssessment) {
+      return res.status(404).json({
+        success: false,
+        message: "Assessment not found in this school.",
+      });
+    }
+
+    // Fetch all evaluated attempts for this assessment.
+    const attempts = await StudentAttempt.find({
+      assessment: schoolAssessment._id,
+      status: "EVALUATED",
+    })
+      .populate("assessment")
+      .populate({
+  path: "student",
+  populate: {
+    path: "user",
+    select: "name firstName middleName lastName fullName",
+  },
+})
+      .sort({ createdAt: -1 });
+
+    return res.status(200).json({
+      success: true,
+      message: "Evaluated attempts fetched successfully.",
+      count: attempts.length,
+      data: attempts,
+    });
+  } catch (error) {
+    console.error(
+      "Error fetching evaluated attempts by assessment:",
+      error
+    );
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch evaluated attempts.",
       error: error.message,
     });
   }

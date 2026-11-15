@@ -188,13 +188,13 @@ const StudentDetailsScreen = () => {
     ============================================================
   */
 
-  const handleAddParent = () => {
-    if (!student?._id) return;
+  // const handleAddParent = () => {
+  //   if (!student?._id) return;
 
-    navigate(
-      `/admin/students/${student._id}/parents/add`,
-    );
-  };
+  //   navigate(
+  //     `/admin/students/${student._id}/parents/add`,
+  //   );
+  // };
 
   /*
     ============================================================
@@ -794,14 +794,14 @@ const StudentDetailsScreen = () => {
               </div>
             </div>
 
-            <button
+            {/* <button
               type="button"
               onClick={handleAddParent}
               className="inline-flex items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700 active:scale-[0.98]"
             >
               <Plus className="h-4 w-4" />
               Add Parent
-            </button>
+            </button> */}
           </div>
 
           <div className="p-6">
@@ -844,14 +844,14 @@ const StudentDetailsScreen = () => {
                   connect this student with their family account.
                 </p>
 
-                <button
+                {/* <button
                   type="button"
                   onClick={handleAddParent}
                   className="mt-5 inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-700"
                 >
                   <Plus className="h-4 w-4" />
                   Add Parent
-                </button>
+                </button> */}
               </div>
             ) : (
               <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">

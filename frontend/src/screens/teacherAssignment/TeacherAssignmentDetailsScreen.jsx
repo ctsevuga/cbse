@@ -29,6 +29,8 @@ const TeacherAssignmentDetailsScreen = () => {
   (state) => state.auth,
 );
 
+const isTeacher = userInfo?.role === "TEACHER";
+
 const schoolSlug = userInfo?.school?.slug;
   const { id } = useParams();
 
@@ -234,41 +236,43 @@ const schoolSlug = userInfo?.school?.slug;
                 </div>
               </div>
 
-              <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={handleEdit}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-semibold text-indigo-700 shadow-md transition hover:bg-blue-50"
-                >
-                  <Pencil className="h-4 w-4" />
-                  Edit
-                </button>
+              {!isTeacher && (
+  <div className="flex flex-wrap gap-2">
+    <button
+      type="button"
+      onClick={handleEdit}
+      className="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-semibold text-indigo-700 shadow-md transition hover:bg-blue-50"
+    >
+      <Pencil className="h-4 w-4" />
+      Edit
+    </button>
 
-                <button
-                  type="button"
-                  onClick={handleStatusUpdate}
-                  disabled={isUpdatingStatus}
-                  className={`inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold shadow-md transition disabled:cursor-not-allowed disabled:opacity-60 ${
-                    assignment.isActive
-                      ? "bg-red-500 text-white hover:bg-red-600"
-                      : "bg-emerald-500 text-white hover:bg-emerald-600"
-                  }`}
-                >
-                  {isUpdatingStatus ? (
-                    <RefreshCw className="h-4 w-4 animate-spin" />
-                  ) : assignment.isActive ? (
-                    <XCircle className="h-4 w-4" />
-                  ) : (
-                    <CheckCircle2 className="h-4 w-4" />
-                  )}
+    <button
+      type="button"
+      onClick={handleStatusUpdate}
+      disabled={isUpdatingStatus}
+      className={`inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold shadow-md transition disabled:cursor-not-allowed disabled:opacity-60 ${
+        assignment.isActive
+          ? "bg-red-500 text-white hover:bg-red-600"
+          : "bg-emerald-500 text-white hover:bg-emerald-600"
+      }`}
+    >
+      {isUpdatingStatus ? (
+        <RefreshCw className="h-4 w-4 animate-spin" />
+      ) : assignment.isActive ? (
+        <XCircle className="h-4 w-4" />
+      ) : (
+        <CheckCircle2 className="h-4 w-4" />
+      )}
 
-                  {isUpdatingStatus
-                    ? "Updating..."
-                    : assignment.isActive
-                      ? "Deactivate"
-                      : "Activate"}
-                </button>
-              </div>
+      {isUpdatingStatus
+        ? "Updating..."
+        : assignment.isActive
+          ? "Deactivate"
+          : "Activate"}
+    </button>
+  </div>
+)}
             </div>
           </div>
         </div>
@@ -523,41 +527,43 @@ const schoolSlug = userInfo?.school?.slug;
             Back to Assignments
           </button>
 
-          <div className="flex gap-3">
-            <button
-              type="button"
-              onClick={handleEdit}
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700"
-            >
-              <Pencil className="h-4 w-4" />
-              Edit Assignment
-            </button>
+          {!isTeacher && (
+  <div className="flex flex-wrap gap-3">
+    <button
+      type="button"
+      onClick={handleEdit}
+      className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700"
+    >
+      <Pencil className="h-4 w-4" />
+      Edit Assignment
+    </button>
 
-            <button
-              type="button"
-              onClick={handleStatusUpdate}
-              disabled={isUpdatingStatus}
-              className={`inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold text-white shadow-sm transition disabled:cursor-not-allowed disabled:opacity-60 ${
-                assignment.isActive
-                  ? "bg-red-600 hover:bg-red-700"
-                  : "bg-emerald-600 hover:bg-emerald-700"
-              }`}
-            >
-              {isUpdatingStatus ? (
-                <RefreshCw className="h-4 w-4 animate-spin" />
-              ) : assignment.isActive ? (
-                <XCircle className="h-4 w-4" />
-              ) : (
-                <CheckCircle2 className="h-4 w-4" />
-              )}
+    <button
+      type="button"
+      onClick={handleStatusUpdate}
+      disabled={isUpdatingStatus}
+      className={`inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold text-white shadow-sm transition disabled:cursor-not-allowed disabled:opacity-60 ${
+        assignment.isActive
+          ? "bg-red-600 hover:bg-red-700"
+          : "bg-emerald-600 hover:bg-emerald-700"
+      }`}
+    >
+      {isUpdatingStatus ? (
+        <RefreshCw className="h-4 w-4 animate-spin" />
+      ) : assignment.isActive ? (
+        <XCircle className="h-4 w-4" />
+      ) : (
+        <CheckCircle2 className="h-4 w-4" />
+      )}
 
-              {isUpdatingStatus
-                ? "Updating..."
-                : assignment.isActive
-                  ? "Deactivate"
-                  : "Activate"}
-            </button>
-          </div>
+      {isUpdatingStatus
+        ? "Updating..."
+        : assignment.isActive
+          ? "Deactivate"
+          : "Activate"}
+    </button>
+  </div>
+)}
         </div>
       </div>
     </div>

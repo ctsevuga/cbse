@@ -1,5 +1,7 @@
 import { useMemo, useState } from "react";
+import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
+
 import { toast } from "react-toastify";
 
 import {
@@ -9,6 +11,12 @@ import {
 
 const ParentListScreen = () => {
   const navigate = useNavigate();
+
+  const { userInfo } = useSelector((state) => state.auth);
+
+const canManageParents = ["SCHOOL_ADMIN", "HM"].includes(
+  userInfo?.role
+);
 
   const [statusFilter, setStatusFilter] =
     useState("all");
@@ -269,31 +277,29 @@ const ParentListScreen = () => {
 
               </div>
 
-              <button
-                type="button"
-                onClick={() =>
-                  navigate("/parents/create")
-                }
-                className="h-11 px-5 rounded-xl font-semibold text-white bg-gradient-to-r from-cyan-500 via-sky-600 to-blue-700 hover:from-indigo-600 hover:via-purple-600 hover:to-pink-600 shadow-lg hover:shadow-xl transition-all duration-200 active:scale-[0.98] flex items-center justify-center gap-2"
-              >
+              {canManageParents && (
+  <button
+    type="button"
+    onClick={() => navigate("/parents/create")}
+    className="h-11 px-5 rounded-xl font-semibold text-white bg-gradient-to-r from-cyan-500 via-sky-600 to-blue-700 hover:from-indigo-600 hover:via-purple-600 hover:to-pink-600 shadow-lg hover:shadow-xl transition-all duration-200 active:scale-[0.98] flex items-center justify-center gap-2"
+  >
+    <svg
+      className="w-5 h-5"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M12 4v16m8-8H4"
+      />
+    </svg>
 
-                <svg
-                  className="w-5 h-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 4v16m8-8H4"
-                  />
-                </svg>
-
-                Add Parent
-
-              </button>
+    Add Parent
+  </button>
+)}
 
             </div>
 
@@ -518,7 +524,7 @@ const ParentListScreen = () => {
                     : "Try changing your search or status filter."}
                 </p>
 
-                {parents.length === 0 && (
+                {canManageParents && parents.length === 0 && (
                   <button
                     type="button"
                     onClick={() =>

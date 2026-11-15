@@ -40,6 +40,14 @@ const StartStudentAttempt = ({
   onStarted,
 }) => {
   const navigate = useNavigate();
+  const [confirmNewAttempt, setConfirmNewAttempt] =
+  useState(false);
+
+const [existingAttemptId, setExistingAttemptId] =
+  useState("");
+
+const [successMessage, setSuccessMessage] =
+  useState("");
 
   // Fetch assessments eligible for the authenticated student.
   const {
@@ -108,44 +116,77 @@ const handleAssessmentChange = (event) => {
     setSelectedAssessmentId(event.target.value);
   };
 
-const handleStart = async () => {
-    if (!selectedAssessmentId || !selectedAssessment || isStarting) {
-      return;
-    }
 
-try {
-  const attempt = await startStudentAttempt({
-  assessmentId: selectedAssessmentId,
-}).unwrap();
-
-console.log("Start attempt API response:", attempt);
-console.log("Question order:", attempt?.questionOrder);
-console.log(
-  "First question:",
-  attempt?.questionOrder?.[0]
-);
-
-  if (onStarted) {
-    onStarted(attempt);
+const handleStart = async (startNew = false) => {
+  if (
+    !selectedAssessmentId ||
+    !selectedAssessment ||
+    isStarting
+  ) {
+    return;
   }
 
-  if (attempt?._id) {
+  setSuccessMessage("");
+
+  try {
+    const response = await startStudentAttempt({
+      assessmentId: selectedAssessmentId,
+      ...(startNew ? { confirmNewAttempt: true } : {}),
+    }).unwrap();
+
+    // The backend may return { message, attempt }
+    // or the attempt directly.
+    const attempt = response?.attempt ?? response;
+
+    if (!attempt?._id) {
+      throw new Error(
+        "The server did not return a valid attempt ID."
+      );
+    }
+
+    setConfirmNewAttempt(false);
+    setExistingAttemptId("");
+
+    setSuccessMessage(
+      response?.message ||
+        "Assessment started successfully."
+    );
+
+    if (onStarted) {
+      onStarted(attempt);
+    }
+
     navigate(
       `/student/assessments/attempt/${attempt._id}`,
       {
         state: {
           attempt,
           assessment: selectedAssessment,
+          message: response?.message,
         },
-      },
+      }
     );
+  } catch (error) {
+    console.error("Failed to start assessment:", error);
+
+    // The backend asks for confirmation before
+    // deleting the existing attempt.
+    if (
+      error?.status === 409 &&
+      error?.data?.code === "CONFIRM_NEW_ATTEMPT"
+    ) {
+      setExistingAttemptId(
+        error?.data?.attemptId || ""
+      );
+
+      setConfirmNewAttempt(true);
+      return;
+    }
+
+    setConfirmNewAttempt(false);
   }
-} catch (error) {
-  console.error("Failed to start assessment:", error);
-}
-
-
 };
+
 
 const hasAssessment = Boolean(selectedAssessment);
 
@@ -234,6 +275,23 @@ return ( <div className="min-h-screen bg-slate-50 px-4 py-8 sm:px-6 lg:px-8"> <d
             </button>
           </div>
         )}
+  
+{/* Assessment-start success */}
+{successMessage && (
+  <div
+    role="status"
+    aria-live="polite"
+    className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-800"
+  >
+    <p className="font-semibold">
+      Assessment started successfully
+    </p>
+
+    <p className="mt-1 text-sm">
+      {successMessage}
+    </p>
+  </div>
+)}
 
         {/* Assessment-start error */}
         {startError && (
@@ -568,6 +626,88 @@ return ( <div className="min-h-screen bg-slate-50 px-4 py-8 sm:px-6 lg:px-8"> <d
       </div>
     </div>
   </div>
+  
+{/* Confirm replacement of an existing attempt */}
+{confirmNewAttempt && (
+  <div
+    className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4"
+    role="presentation"
+  >
+    <div
+      role="alertdialog"
+      aria-modal="true"
+      aria-labelledby="confirm-attempt-title"
+      aria-describedby="confirm-attempt-description"
+      className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl sm:p-8"
+    >
+      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-100 text-amber-700">
+        <svg
+          className="h-6 w-6"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M12 9v4m0 4h.01M10.3 3.9 2.8 17.2A2 2 0 0 0 4.5 20h15a2 2 0 0 0 1.7-2.8L13.7 3.9a2 2 0 0 0-3.4 0Z"
+          />
+        </svg>
+      </div>
+
+      <h2
+        id="confirm-attempt-title"
+        className="mt-4 text-xl font-bold text-slate-900"
+      >
+        Start a new attempt?
+      </h2>
+
+      <p
+        id="confirm-attempt-description"
+        className="mt-3 text-sm leading-6 text-slate-600"
+      >
+        An existing attempt was found. Starting a new
+        attempt will permanently delete your previous
+        attempt and its saved answers. This action cannot
+        be undone.
+      </p>
+
+      {existingAttemptId && (
+        <p className="mt-3 text-xs text-slate-500">
+          Existing attempt: {existingAttemptId}
+        </p>
+      )}
+
+      <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+        <button
+          type="button"
+          onClick={() => {
+            setConfirmNewAttempt(false);
+            setExistingAttemptId("");
+          }}
+          className="rounded-xl border border-slate-300 px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+        >
+          Cancel
+        </button>
+
+        <button
+  type="button"
+  onClick={() => handleStart(false)}
+  disabled={
+    !selectedAssessment ||
+    isStarting ||
+    isLoadingAssessments
+  }
+  className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-indigo-600 px-6 py-3 text-sm font-semibold text-white shadow-lg transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+>
+  {isStarting ? "Starting assessment..." : "Start Assessment"}
+</button>
+      </div>
+    </div>
+  </div>
+)}
+
 </div>
 
 

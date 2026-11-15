@@ -40,8 +40,7 @@ Clients must not provide/override the school.
 */
 
 const assessmentQuestionRoles = [
-  "SCHOOL_ADMIN",
-  "HM",
+  
   "TEACHER",
 ];
 

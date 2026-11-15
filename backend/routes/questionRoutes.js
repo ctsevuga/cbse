@@ -3,6 +3,7 @@ import express from "express";
 import {
   createQuestion,
   getQuestions,
+  getAssignmentQuestions, // Added
   getQuestionById,
   getQuestionsBySubject,
   getQuestionsByChapter,
@@ -36,6 +37,13 @@ router
     protect,
     getQuestions,
   );
+
+// Assignment questions with answer editor configuration
+router.get(
+  "/assignment-questions",
+  protect,
+  getAssignmentQuestions,
+);
 
 router.get(
   "/my",

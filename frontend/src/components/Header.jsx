@@ -66,14 +66,21 @@ const Header = () => {
             </button>
 
             <div
-              className="flex cursor-pointer items-center gap-2"
-              onClick={() => navigate("/home")}
-            >
-              <img src={logo} alt="logo" className="h-8" />
-              <span className="text-xl font-bold text-white">
-                CBSE Practice Exam
-              </span>
-            </div>
+  className="flex cursor-pointer items-center gap-2"
+  onClick={() => navigate("/home")}
+>
+  <img src={logo} alt="logo" className="h-8" />
+
+  <div className="flex flex-col leading-tight">
+    <span className="text-xl font-bold text-white">
+      EDUVISTA
+    </span>
+
+    <span className="text-[16px] font-medium text-white/90">
+      Educational Visualization and Intelligent Student Tracking Analytics
+    </span>
+  </div>
+</div>
           </div>
           <button
             className="hidden sm:block rounded px-3 py-2 text-white hover:bg-red-800"

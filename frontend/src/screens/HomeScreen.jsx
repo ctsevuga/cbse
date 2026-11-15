@@ -308,6 +308,30 @@ const HomeScreen = () => {
                 <h3 className="text-xl font-bold text-pink-600">Parents</h3>
                 <p className="mt-2 text-gray-600">View and manage parents.</p>
               </button>
+              <button
+                type="button"
+                onClick={() => navigate("/student-parents")}
+                className="rounded-2xl bg-white p-6 text-left shadow-lg transition-all hover:-translate-y-1 hover:shadow-xl"
+              >
+                <h3 className="text-xl font-bold text-pink-600">
+                  Student Parent Relationship List
+                </h3>
+                <p className="mt-2 text-gray-600">
+                  View and manage student parent relationships.
+                </p>
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate("/student-parents/create")}
+                className="rounded-2xl bg-white p-6 text-left shadow-lg transition-all hover:-translate-y-1 hover:shadow-xl"
+              >
+                <h3 className="text-xl font-bold text-pink-600">
+                  Create student parent relationships.
+                </h3>
+                <p className="mt-2 text-gray-600">
+                  Create student parent relationships.
+                </p>
+              </button>
 
               <button
                 type="button"
@@ -329,7 +353,7 @@ const HomeScreen = () => {
 
               <button
                 type="button"
-                onClick={() => navigate("/teacher-assignments")}
+                onClick={() => navigate("/admin/teacher-assignments")}
                 className="rounded-2xl bg-white p-6 text-left shadow-lg transition-all hover:-translate-y-1 hover:shadow-xl"
               >
                 <h3 className="text-xl font-bold text-cyan-600">
@@ -342,7 +366,7 @@ const HomeScreen = () => {
 
               <button
                 type="button"
-                onClick={() => navigate("/teacher-assignments/create")}
+                onClick={() => navigate("/admin/teacher-assignments/create")}
                 className="rounded-2xl bg-white p-6 text-left shadow-lg transition-all hover:-translate-y-1 hover:shadow-xl"
               >
                 <h3 className="text-xl font-bold text-teal-600">
@@ -389,8 +413,18 @@ const HomeScreen = () => {
                 </h3>
                 <p className="mt-2 text-gray-600">Questions List</p>
               </button>
-
               <button
+                type="button"
+                onClick={() => navigate("/admin/dashboard")}
+                className="rounded-2xl bg-white p-6 text-left shadow-lg transition-all hover:-translate-y-1 hover:shadow-xl"
+              >
+                <h3 className="text-xl font-bold text-red-600">Dasboard</h3>
+                <p className="mt-2 text-gray-600">
+                  View School level Performance
+                </p>
+              </button>
+
+              {/* <button
                 type="button"
                 onClick={() => navigate("/assessments")}
                 className="rounded-2xl bg-white p-6 text-left shadow-lg transition-all hover:-translate-y-1 hover:shadow-xl"
@@ -551,7 +585,7 @@ const HomeScreen = () => {
                 Student Result List
                 </h3>
                 <p className="mt-2 text-gray-600"> Student Result List</p>
-              </button>
+              </button> */}
             </div>
           </div>
         )}
@@ -620,6 +654,31 @@ const HomeScreen = () => {
 
               <button
                 type="button"
+                onClick={() => navigate("/student-parents")}
+                className="rounded-2xl bg-white p-6 text-left shadow-lg transition-all hover:-translate-y-1 hover:shadow-xl"
+              >
+                <h3 className="text-xl font-bold text-pink-600">
+                  Student Parent Relationship List
+                </h3>
+                <p className="mt-2 text-gray-600">
+                  View and manage student parent relationships.
+                </p>
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate("/student-parents/create")}
+                className="rounded-2xl bg-white p-6 text-left shadow-lg transition-all hover:-translate-y-1 hover:shadow-xl"
+              >
+                <h3 className="text-xl font-bold text-pink-600">
+                  Create student parent relationships.
+                </h3>
+                <p className="mt-2 text-gray-600">
+                  Create student parent relationships.
+                </p>
+              </button>
+
+              <button
+                type="button"
                 onClick={() => navigate("/classes")}
                 className="rounded-2xl bg-white p-6 text-left shadow-lg transition-all hover:-translate-y-1 hover:shadow-xl"
               >
@@ -679,8 +738,28 @@ const HomeScreen = () => {
                 </h3>
                 <p className="mt-2 text-gray-600">Questions List</p>
               </button>
-
               <button
+                type="button"
+                onClick={() => navigate("/admin/dashboard")}
+                className="rounded-2xl bg-white p-6 text-left shadow-lg transition-all hover:-translate-y-1 hover:shadow-xl"
+              >
+                <h3 className="text-xl font-bold text-red-600">Dashboard</h3>
+                <p className="mt-2 text-gray-600">
+                  View School Level Performace
+                </p>
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate("/admin/teacher-assignments/create")}
+                className="rounded-2xl bg-white p-6 text-left shadow-lg transition-all hover:-translate-y-1 hover:shadow-xl"
+              >
+                <h3 className="text-xl font-bold text-teal-600">
+                  Create Teacher Assignment
+                </h3>
+                <p className="mt-2 text-gray-600">Create Teacher Assignment.</p>
+              </button>
+
+              {/* <button
                 type="button"
                 onClick={() => navigate("/assessments")}
                 className="rounded-2xl bg-white p-6 text-left shadow-lg transition-all hover:-translate-y-1 hover:shadow-xl"
@@ -851,7 +930,7 @@ const HomeScreen = () => {
                 Evaluation Pending Queue
                 </h3>
                 <p className="mt-2 text-gray-600"> Evaluation Pending Queue</p>
-              </button>
+              </button> */}
             </div>
           </div>
         )}
@@ -863,6 +942,242 @@ const HomeScreen = () => {
             </h2>
 
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+              <button
+                type="button"
+                onClick={() => navigate("/teacher-assignments/my")}
+                className="rounded-2xl bg-white p-6 text-left shadow-lg transition-all hover:-translate-y-1 hover:shadow-xl"
+              >
+                <h3 className="text-xl font-bold text-red-600">
+                  My Assignments
+                </h3>
+                <p className="mt-2 text-gray-600">My Assignments</p>
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate("/assessment/teacher/create")}
+                className="rounded-2xl bg-white p-6 text-left shadow-lg transition-all hover:-translate-y-1 hover:shadow-xl"
+              >
+                <h3 className="text-xl font-bold text-red-600">
+                  Create Assessment
+                </h3>
+                <p className="mt-2 text-gray-600">Create Assessment</p>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => navigate("/assessments/my-assessments")}
+                className="rounded-2xl bg-white p-6 text-left shadow-lg transition-all hover:-translate-y-1 hover:shadow-xl"
+              >
+                <h3 className="text-xl font-bold text-red-600">
+                  My Assessments
+                </h3>
+                <p className="mt-2 text-gray-600">My Assessments</p>
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate("/assessment-section/my")}
+                className="rounded-2xl bg-white p-6 text-left shadow-lg transition-all hover:-translate-y-1 hover:shadow-xl"
+              >
+                <h3 className="text-xl font-bold text-red-600">
+                  Assessment Section List
+                </h3>
+                <p className="mt-2 text-gray-600">
+                  View Assessment section List
+                </p>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => navigate("/assessment-questions/create")}
+                className="rounded-2xl bg-white p-6 text-left shadow-lg transition-all hover:-translate-y-1 hover:shadow-xl"
+              >
+                <h3 className="text-xl font-bold text-red-600">
+                  Create Assessment Question
+                </h3>
+                <p className="mt-2 text-gray-600">Create Assessment Question</p>
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate("/assessment-questions")}
+                className="rounded-2xl bg-white p-6 text-left shadow-lg transition-all hover:-translate-y-1 hover:shadow-xl"
+              >
+                <h3 className="text-xl font-bold text-red-600">
+                  Assessment Question List
+                </h3>
+                <p className="mt-2 text-gray-600">
+                  View Assessment question List
+                </p>
+              </button>
+
+              {/* <button
+                type="button"
+                onClick={() =>
+                  navigate("/student-attempts/assessment/:assessmentId")
+                }
+                className="rounded-2xl bg-white p-6 text-left shadow-lg transition-all hover:-translate-y-1 hover:shadow-xl"
+              >
+                <h3 className="text-xl font-bold text-red-600">
+                  Assessment List by Assessment
+                </h3>
+                <p className="mt-2 text-gray-600">
+                  Assessment List by Assessment
+                </p>
+              </button> */}
+              <button
+                type="button"
+                onClick={() => navigate("/student-attempts/student/:studentId")}
+                className="rounded-2xl bg-white p-6 text-left shadow-lg transition-all hover:-translate-y-1 hover:shadow-xl"
+              >
+                <h3 className="text-xl font-bold text-red-600">
+                  Assessment List by Student
+                </h3>
+                <p className="mt-2 text-gray-600">Assessment List by Student</p>
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate("/student-attempts/teacher")}
+                className="rounded-2xl bg-white p-6 text-left shadow-lg transition-all hover:-translate-y-1 hover:shadow-xl"
+              >
+                <h3 className="text-xl font-bold text-red-600">
+                  Assessment Attempt List
+                </h3>
+                <p className="mt-2 text-gray-600">Assessment Attempt List</p>
+              </button>
+
+              {/* <button
+                type="button"
+                onClick={() => navigate("/student-answers")}
+                className="rounded-2xl bg-white p-6 text-left shadow-lg transition-all hover:-translate-y-1 hover:shadow-xl"
+              >
+                <h3 className="text-xl font-bold text-red-600">
+                  Assessment Answer List 
+                </h3>
+                <p className="mt-2 text-gray-600">Assessment Answer List</p>
+              </button> */}
+              {/* <button
+                type="button"
+                onClick={() => navigate("/student-answers/my")}
+                className="rounded-2xl bg-white p-6 text-left shadow-lg transition-all hover:-translate-y-1 hover:shadow-xl"
+              >
+                <h3 className="text-xl font-bold text-red-600">
+                  My Student Assessment Answer List 
+                </h3>
+                <p className="mt-2 text-gray-600">My Student Assessment Answer List</p>
+              </button> */}
+              {/* <button
+                type="button"
+                onClick={() => navigate("/student-answers/my")}
+                className="rounded-2xl bg-white p-6 text-left shadow-lg transition-all hover:-translate-y-1 hover:shadow-xl"
+              >
+                <h3 className="text-xl font-bold text-red-600">
+                  Answer Evaluation List
+                </h3>
+                <p className="mt-2 text-gray-600"> Answer Evaluation List</p>
+              </button> */}
+              <button
+                type="button"
+                onClick={() => navigate("/student-attempts/teacher/review")}
+                className="rounded-2xl bg-white p-6 text-left shadow-lg transition-all hover:-translate-y-1 hover:shadow-xl"
+              >
+                <h3 className="text-xl font-bold text-red-600">
+                  Evaluation Review
+                </h3>
+                <p className="mt-2 text-gray-600"> Evaluation Review</p>
+              </button>
+              {/* <button
+                type="button"
+                onClick={() => navigate("/answer-evaluations/create")}
+                className="rounded-2xl bg-white p-6 text-left shadow-lg transition-all hover:-translate-y-1 hover:shadow-xl"
+              >
+                <h3 className="text-xl font-bold text-red-600">
+                  Create Evaluation
+                </h3>
+                <p className="mt-2 text-gray-600"> Create Evaluation</p>
+              </button> */}
+
+              {/* <button
+                type="button"
+                onClick={() => navigate("/answer-evaluations/my")}
+                className="rounded-2xl bg-white p-6 text-left shadow-lg transition-all hover:-translate-y-1 hover:shadow-xl"
+              >
+                <h3 className="text-xl font-bold text-red-600">
+                  My Evaluations
+                </h3>
+                <p className="mt-2 text-gray-600"> My Evaluations</p>
+              </button> */}
+
+              {/* <button
+                type="button"
+                onClick={() => navigate("/answer-evaluations/pending")}
+                className="rounded-2xl bg-white p-6 text-left shadow-lg transition-all hover:-translate-y-1 hover:shadow-xl"
+              >
+                <h3 className="text-xl font-bold text-red-600">
+                 Pending Evaluations
+                </h3>
+                <p className="mt-2 text-gray-600"> Pending Evaluations</p>
+              </button> */}
+
+              {/* <button
+                type="button"
+                onClick={() => navigate("/teacher/evaluation-dashboard")}
+                className="rounded-2xl bg-white p-6 text-left shadow-lg transition-all hover:-translate-y-1 hover:shadow-xl"
+              >
+                <h3 className="text-xl font-bold text-red-600">
+                Evaluation Dashboard
+                </h3>
+                <p className="mt-2 text-gray-600"> Evaluation Dashboard</p>
+              </button> */}
+
+              <button
+                type="button"
+                onClick={() => navigate("/results")}
+                className="rounded-2xl bg-white p-6 text-left shadow-lg transition-all hover:-translate-y-1 hover:shadow-xl"
+              >
+                <h3 className="text-xl font-bold text-red-600">Result List</h3>
+                <p className="mt-2 text-gray-600"> Result List</p>
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate("/results/assessment")}
+                className="rounded-2xl bg-white p-6 text-left shadow-lg transition-all hover:-translate-y-1 hover:shadow-xl"
+              >
+                <h3 className="text-xl font-bold text-red-600">
+                  Results List By Assessment
+                </h3>
+                <p className="mt-2 text-gray-600"> Result List</p>
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate("/teacher/dashboard")}
+                className="rounded-2xl bg-white p-6 text-left shadow-lg transition-all hover:-translate-y-1 hover:shadow-xl"
+              >
+                <h3 className="text-xl font-bold text-red-600">Dashboard</h3>
+                <p className="mt-2 text-gray-600">
+                  {" "}
+                  Charts and Graphs of student's assessments
+                </p>
+              </button>
+              {/* <button
+                type="button"
+                onClick={() => navigate("/results/assessment/:assessmentId")}
+                className="rounded-2xl bg-white p-6 text-left shadow-lg transition-all hover:-translate-y-1 hover:shadow-xl"
+              >
+                <h3 className="text-xl font-bold text-red-600">
+                Assessment Result List
+                </h3>
+                <p className="mt-2 text-gray-600"> Assessment Result List</p>
+              </button> */}
+              {/* <button
+                type="button"
+                onClick={() => navigate("/results/student/:studentId")}
+                className="rounded-2xl bg-white p-6 text-left shadow-lg transition-all hover:-translate-y-1 hover:shadow-xl"
+              >
+                <h3 className="text-xl font-bold text-red-600">
+                Student Result List
+                </h3>
+                <p className="mt-2 text-gray-600"> Student Result List</p>
+              </button> */}
+
               <button
                 type="button"
                 onClick={() => navigate("/my-school")}
@@ -941,7 +1256,7 @@ const HomeScreen = () => {
                 <p className="mt-2 text-gray-600">View standard Topics.</p>
               </button>
 
-              <button
+              {/* <button
                 type="button"
                 onClick={() => navigate("/question-groups")}
                 className="rounded-2xl bg-white p-6 text-left shadow-lg transition-all hover:-translate-y-1 hover:shadow-xl"
@@ -961,245 +1276,7 @@ const HomeScreen = () => {
                   Questions List
                 </h3>
                 <p className="mt-2 text-gray-600">Questions List</p>
-              </button>
-              <button
-                type="button"
-                onClick={() => navigate("/teacher-assignments/my")}
-                className="rounded-2xl bg-white p-6 text-left shadow-lg transition-all hover:-translate-y-1 hover:shadow-xl"
-              >
-                <h3 className="text-xl font-bold text-red-600">
-                  My Assignments
-                </h3>
-                <p className="mt-2 text-gray-600">My Assignments</p>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => navigate("/assessments")}
-                className="rounded-2xl bg-white p-6 text-left shadow-lg transition-all hover:-translate-y-1 hover:shadow-xl"
-              >
-                <h3 className="text-xl font-bold text-red-600">
-                  Assessment List
-                </h3>
-                <p className="mt-2 text-gray-600">View Assessment List</p>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => navigate("/assessments/create")}
-                className="rounded-2xl bg-white p-6 text-left shadow-lg transition-all hover:-translate-y-1 hover:shadow-xl"
-              >
-                <h3 className="text-xl font-bold text-red-600">
-                  Create Assessment
-                </h3>
-                <p className="mt-2 text-gray-600">Create Assessment</p>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => navigate("/assessments/my-assessments")}
-                className="rounded-2xl bg-white p-6 text-left shadow-lg transition-all hover:-translate-y-1 hover:shadow-xl"
-              >
-                <h3 className="text-xl font-bold text-red-600">
-                  My Assessments
-                </h3>
-                <p className="mt-2 text-gray-600">My Assessments</p>
-              </button>
-              <button
-                type="button"
-                onClick={() => navigate("/assessment-sections")}
-                className="rounded-2xl bg-white p-6 text-left shadow-lg transition-all hover:-translate-y-1 hover:shadow-xl"
-              >
-                <h3 className="text-xl font-bold text-red-600">
-                  Assessment Section List
-                </h3>
-                <p className="mt-2 text-gray-600">
-                  View Assessment section List
-                </p>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => navigate("/assessment-sections/create")}
-                className="rounded-2xl bg-white p-6 text-left shadow-lg transition-all hover:-translate-y-1 hover:shadow-xl"
-              >
-                <h3 className="text-xl font-bold text-red-600">
-                  Create Assessment Section
-                </h3>
-                <p className="mt-2 text-gray-600">Create Assessment Section</p>
-              </button>
-              <button
-                type="button"
-                onClick={() => navigate("/assessment-questions")}
-                className="rounded-2xl bg-white p-6 text-left shadow-lg transition-all hover:-translate-y-1 hover:shadow-xl"
-              >
-                <h3 className="text-xl font-bold text-red-600">
-                  Assessment Question List
-                </h3>
-                <p className="mt-2 text-gray-600">
-                  View Assessment question List
-                </p>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => navigate("/assessment-questions/create")}
-                className="rounded-2xl bg-white p-6 text-left shadow-lg transition-all hover:-translate-y-1 hover:shadow-xl"
-              >
-                <h3 className="text-xl font-bold text-red-600">
-                  Create Assessment Question
-                </h3>
-                <p className="mt-2 text-gray-600">Create Assessment Question</p>
-              </button>
-              <button
-                type="button"
-                onClick={() =>
-                  navigate("/student-attempts/assessment/:assessmentId")
-                }
-                className="rounded-2xl bg-white p-6 text-left shadow-lg transition-all hover:-translate-y-1 hover:shadow-xl"
-              >
-                <h3 className="text-xl font-bold text-red-600">
-                  Assessment List by Assessment
-                </h3>
-                <p className="mt-2 text-gray-600">
-                  Assessment List by Assessment
-                </p>
-              </button>
-              <button
-                type="button"
-                onClick={() => navigate("/student-attempts/student/:studentId")}
-                className="rounded-2xl bg-white p-6 text-left shadow-lg transition-all hover:-translate-y-1 hover:shadow-xl"
-              >
-                <h3 className="text-xl font-bold text-red-600">
-                  Assessment List by Student
-                </h3>
-                <p className="mt-2 text-gray-600">Assessment List by Student</p>
-              </button>
-              <button
-                type="button"
-                onClick={() => navigate("/student-attempts")}
-                className="rounded-2xl bg-white p-6 text-left shadow-lg transition-all hover:-translate-y-1 hover:shadow-xl"
-              >
-                <h3 className="text-xl font-bold text-red-600">
-                  Assessment Attempt List 
-                </h3>
-                <p className="mt-2 text-gray-600">Assessment Attempt List</p>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => navigate("/student-answers")}
-                className="rounded-2xl bg-white p-6 text-left shadow-lg transition-all hover:-translate-y-1 hover:shadow-xl"
-              >
-                <h3 className="text-xl font-bold text-red-600">
-                  Assessment Answer List 
-                </h3>
-                <p className="mt-2 text-gray-600">Assessment Answer List</p>
-              </button>
-              <button
-                type="button"
-                onClick={() => navigate("/student-answers/my")}
-                className="rounded-2xl bg-white p-6 text-left shadow-lg transition-all hover:-translate-y-1 hover:shadow-xl"
-              >
-                <h3 className="text-xl font-bold text-red-600">
-                  My Student Assessment Answer List 
-                </h3>
-                <p className="mt-2 text-gray-600">My Student Assessment Answer List</p>
-              </button>
-              <button
-                type="button"
-                onClick={() => navigate("/student-answers/my")}
-                className="rounded-2xl bg-white p-6 text-left shadow-lg transition-all hover:-translate-y-1 hover:shadow-xl"
-              >
-                <h3 className="text-xl font-bold text-red-600">
-                  Answer Evaluation List
-                </h3>
-                <p className="mt-2 text-gray-600"> Answer Evaluation List</p>
-              </button>
-              <button
-                type="button"
-                onClick={() => navigate("/answer-evaluations/create")}
-                className="rounded-2xl bg-white p-6 text-left shadow-lg transition-all hover:-translate-y-1 hover:shadow-xl"
-              >
-                <h3 className="text-xl font-bold text-red-600">
-                  Create Evaluation
-                </h3>
-                <p className="mt-2 text-gray-600"> Create Evaluation</p>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => navigate("/answer-evaluations/my")}
-                className="rounded-2xl bg-white p-6 text-left shadow-lg transition-all hover:-translate-y-1 hover:shadow-xl"
-              >
-                <h3 className="text-xl font-bold text-red-600">
-                  My Evaluations
-                </h3>
-                <p className="mt-2 text-gray-600"> My Evaluations</p>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => navigate("/answer-evaluations/pending")}
-                className="rounded-2xl bg-white p-6 text-left shadow-lg transition-all hover:-translate-y-1 hover:shadow-xl"
-              >
-                <h3 className="text-xl font-bold text-red-600">
-                 Pending Evaluations
-                </h3>
-                <p className="mt-2 text-gray-600"> Pending Evaluations</p>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => navigate("/teacher/evaluation-dashboard")}
-                className="rounded-2xl bg-white p-6 text-left shadow-lg transition-all hover:-translate-y-1 hover:shadow-xl"
-              >
-                <h3 className="text-xl font-bold text-red-600">
-                Evaluation Dashboard
-                </h3>
-                <p className="mt-2 text-gray-600"> Evaluation Dashboard</p>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => navigate("/results")}
-                className="rounded-2xl bg-white p-6 text-left shadow-lg transition-all hover:-translate-y-1 hover:shadow-xl"
-              >
-                <h3 className="text-xl font-bold text-red-600">
-                Result List
-                </h3>
-                <p className="mt-2 text-gray-600"> Result List</p>
-              </button>
-              <button
-                type="button"
-                onClick={() => navigate("/results/assessment/:assessmentId")}
-                className="rounded-2xl bg-white p-6 text-left shadow-lg transition-all hover:-translate-y-1 hover:shadow-xl"
-              >
-                <h3 className="text-xl font-bold text-red-600">
-                Assessment Result List
-                </h3>
-                <p className="mt-2 text-gray-600"> Assessment Result List</p>
-              </button>
-              <button
-                type="button"
-                onClick={() => navigate("/results/student/:studentId")}
-                className="rounded-2xl bg-white p-6 text-left shadow-lg transition-all hover:-translate-y-1 hover:shadow-xl"
-              >
-                <h3 className="text-xl font-bold text-red-600">
-                Student Result List
-                </h3>
-                <p className="mt-2 text-gray-600"> Student Result List</p>
-              </button>
-              <button
-                type="button"
-                onClick={() => navigate("/student-attempts-review")}
-                className="rounded-2xl bg-white p-6 text-left shadow-lg transition-all hover:-translate-y-1 hover:shadow-xl"
-              >
-                <h3 className="text-xl font-bold text-red-600">
-                Evaluation Review
-                </h3>
-                <p className="mt-2 text-gray-600"> Evaluation Review</p>
-              </button>
+              </button> */}
             </div>
           </div>
         )}
@@ -1253,6 +1330,16 @@ const HomeScreen = () => {
                 </h3>
                 <p className="mt-2 text-gray-600">My Assessment Attempts.</p>
               </button>
+              <button
+                type="button"
+                onClick={() => navigate("/student/dashboard")}
+                className="rounded-2xl bg-white p-6 text-left shadow-lg transition-all hover:-translate-y-1 hover:shadow-xl"
+              >
+                <h3 className="text-xl font-bold text-indigo-600">Dashboard</h3>
+                <p className="mt-2 text-gray-600">
+                  Charts and Graphs of assessment results.
+                </p>
+              </button>
             </div>
           </div>
         )}
@@ -1283,6 +1370,28 @@ const HomeScreen = () => {
                 <h3 className="text-xl font-bold text-blue-600">My School</h3>
                 <p className="mt-2 text-gray-600">
                   View your school information.
+                </p>
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate("/student-attempts/parent")}
+                className="rounded-2xl bg-white p-6 text-left shadow-lg transition-all hover:-translate-y-1 hover:shadow-xl"
+              >
+                <h3 className="text-xl font-bold text-blue-600">
+                  My Child Performance
+                </h3>
+                <p className="mt-2 text-gray-600">
+                  View your child assessment performance.
+                </p>
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate("/parent/dashboard")}
+                className="rounded-2xl bg-white p-6 text-left shadow-lg transition-all hover:-translate-y-1 hover:shadow-xl"
+              >
+                <h3 className="text-xl font-bold text-blue-600">Dashboard</h3>
+                <p className="mt-2 text-gray-600">
+                  View your Chart and graph of your child performance.
                 </p>
               </button>
             </div>

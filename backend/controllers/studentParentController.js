@@ -1,240 +1,357 @@
+
+import mongoose from "mongoose";
 import asyncHandler from "../middleware/asyncHandler.js";
 
 import StudentParent from "../models/studentParentModel.js";
 import Student from "../models/studentModel.js";
 import Parent from "../models/parentModel.js";
-
+import User from "../models/userModel.js";
 /*
-  ============================================================
-  HELPERS
-  ============================================================
+============================================================
+HELPERS
+============================================================
 */
 
-/*
-  Validate Student and Parent and ensure
-  that both belong to the same school.
-*/
-const validateStudentAndParent = async (
-  studentId,
-  parentId,
-) => {
-  const student = await Student.findById(studentId);
+// ----------------------------------------------------------
+// Validate SCHOOL_ADMIN access
+// ----------------------------------------------------------
 
-  if (!student) {
-    return {
-      error: "Student not found",
-    };
+const validateAdminAccess = (req) => {
+  if (req.user.role !== "SCHOOL_ADMIN") {
+    const error = new Error(
+      "Only SCHOOL_ADMIN can manage student-parent relationships"
+    );
+    error.statusCode = 403;
+    throw error;
   }
 
-  if (!student.isActive) {
-    return {
-      error: "Student is inactive",
-    };
+  if (!req.schoolId) {
+    const error = new Error(
+      "User is not associated with a school"
+    );
+    error.statusCode = 403;
+    throw error;
   }
-
-  const parent = await Parent.findById(parentId);
-
-  if (!parent) {
-    return {
-      error: "Parent not found",
-    };
-  }
-
-  if (!parent.isActive) {
-    return {
-      error: "Parent is inactive",
-    };
-  }
-
-  if (
-    String(student.school) !==
-    String(parent.school)
-  ) {
-    return {
-      error:
-        "Student and parent must belong to the same school",
-    };
-  }
-
-  return {
-    student,
-    parent,
-  };
 };
 
-/*
-  Check whether the requesting user
-  is authorized to access the school.
-*/
-const checkSchoolAccess = (req, schoolId) => {
-  if (req.user.role === "SUPER_ADMIN") {
-    return true;
-  }
+// ----------------------------------------------------------
+// Populate relationship information
+// ----------------------------------------------------------
 
-  if (!req.schoolId || !schoolId) {
-    return false;
-  }
-
-  return String(req.schoolId) === String(schoolId);
-};
-
-/*
-  Populate Student-Parent relationship
-  consistently across all endpoints.
-*/
 const populateStudentParent = (query) => {
   return query
-    .populate(
-      "student",
-      "admissionNumber dateOfBirth gender stream isActive school",
-    )
     .populate({
       path: "student",
-      populate: {
-        path: "user",
-        select:
-          "name email phone role isActive",
-      },
+      select:
+        "admissionNumber academicYear class section stream isActive school",
+      populate: [
+        {
+          path: "user",
+          select: "name email phone",
+        },
+        {
+          path: "academicYear",
+          select: "name",
+        },
+        {
+          path: "class",
+          select: "name",
+        },
+        {
+          path: "section",
+          select: "name",
+        },
+        {
+          path: "stream",
+          select: "name",
+        },
+      ],
     })
     .populate({
       path: "parent",
+      select: "school isActive",
       populate: {
         path: "user",
-        select:
-          "name email phone role isActive",
+        select: "name email phone",
       },
     });
 };
 
+// ----------------------------------------------------------
+// Validate student and parent belong to the same school
+// ----------------------------------------------------------
+
+const validateStudentAndParent = async (
+  studentId,
+  parentId,
+  schoolId
+) => {
+  const [student, parent] = await Promise.all([
+    Student.findOne({
+      _id: studentId,
+      school: schoolId,
+      isActive: true,
+    }),
+
+    Parent.findOne({
+      _id: parentId,
+      school: schoolId,
+      isActive: true,
+    }),
+  ]);
+
+  if (!student) {
+    throw new Error(
+      "Student not found or inactive in this school"
+    );
+  }
+
+  if (!parent) {
+    throw new Error(
+      "Parent not found or inactive in this school"
+    );
+  }
+
+  return { student, parent };
+};
+
+
 /*
-  ============================================================
-  CREATE STUDENT-PARENT RELATIONSHIP
-  ============================================================
+============================================================
+1. CREATE STUDENT-PARENT RELATIONSHIP
+SCHOOL_ADMIN
+============================================================
 */
 
 export const createStudentParent = asyncHandler(
   async (req, res) => {
+    validateAdminAccess(req);
+
     const {
       student,
       parent,
       relationship,
-      isPrimary,
+      isPrimary = false,
     } = req.body;
 
-    /*
-      Required fields
-    */
+    // --------------------------------------------------
+    // 1. Required field validation
+    // --------------------------------------------------
+
     if (!student || !parent || !relationship) {
       res.status(400);
+
       throw new Error(
-        "Student, parent and relationship are required",
+        "Student, parent and relationship are required"
       );
     }
 
-    /*
-      Validate student and parent
-    */
-    const validation =
-      await validateStudentAndParent(
-        student,
-        parent,
-      );
+    // --------------------------------------------------
+    // 2. Validate primary flag
+    // --------------------------------------------------
 
-    if (validation.error) {
+    if (typeof isPrimary !== "boolean") {
       res.status(400);
-      throw new Error(validation.error);
+
+      throw new Error(
+        "isPrimary must be true or false"
+      );
     }
 
-    const {
-      student: studentRecord,
-    } = validation;
+    // --------------------------------------------------
+    // 3. Validate relationship
+    // --------------------------------------------------
 
-    /*
-      School authorization
-    */
+    const allowedRelationships = [
+      "FATHER",
+      "MOTHER",
+      "GUARDIAN",
+      "GRANDFATHER",
+      "GRANDMOTHER",
+      "OTHER",
+    ];
+
+    const normalizedRelationship =
+      relationship.toUpperCase().trim();
+
     if (
-      !checkSchoolAccess(
-        req,
-        studentRecord.school,
+      !allowedRelationships.includes(
+        normalizedRelationship
       )
     ) {
-      res.status(403);
-      throw new Error(
-        "Not authorized to access this school",
-      );
-    }
-
-    /*
-      Prevent duplicate relationship
-    */
-    const existingRelationship =
-      await StudentParent.findOne({
-        student,
-        parent,
-      });
-
-    if (existingRelationship) {
       res.status(400);
+
       throw new Error(
-        "Student-parent relationship already exists",
+        "Invalid relationship type"
       );
     }
 
-    /*
-      Only one active primary relationship
-      should exist for a student.
-    */
-    if (isPrimary === true) {
+    // --------------------------------------------------
+    // 4. Validate Student
+    // --------------------------------------------------
+
+    const studentRecord = await Student.findOne({
+      _id: student,
+      school: req.schoolId,
+      isActive: true,
+    });
+
+    if (!studentRecord) {
+      res.status(404);
+
+      throw new Error(
+        "Student not found or inactive in this school"
+      );
+    }
+
+    // --------------------------------------------------
+    // 5. Validate Parent
+    // --------------------------------------------------
+
+    const parentRecord = await Parent.findOne({
+      _id: parent,
+      school: req.schoolId,
+      isActive: true,
+    });
+
+    if (!parentRecord) {
+      res.status(404);
+
+      throw new Error(
+        "Parent not found or inactive in this school"
+      );
+    }
+
+    // --------------------------------------------------
+    // 6. Validate associated User accounts
+    // --------------------------------------------------
+
+    const [studentUser, parentUser] = await Promise.all([
+      User.findOne({
+        _id: studentRecord.user,
+        school: req.schoolId,
+        isActive: true,
+      }),
+
+      User.findOne({
+        _id: parentRecord.user,
+        school: req.schoolId,
+        isActive: true,
+      }),
+    ]);
+
+    if (!studentUser) {
+      res.status(400);
+
+      throw new Error(
+        "Student user account is inactive or invalid"
+      );
+    }
+
+    if (!parentUser) {
+      res.status(400);
+
+      throw new Error(
+        "Parent user account is inactive or invalid"
+      );
+    }
+
+    if (studentUser.role !== "STUDENT") {
+      res.status(400);
+
+      throw new Error(
+        "Selected user is not a student"
+      );
+    }
+
+    if (parentUser.role !== "PARENT") {
+      res.status(400);
+
+      throw new Error(
+        "Selected user is not a parent"
+      );
+    }
+
+    // --------------------------------------------------
+    // 7. Prevent duplicate relationship
+    // --------------------------------------------------
+
+    const existing = await StudentParent.findOne({
+      student,
+      parent,
+    });
+
+    if (existing) {
+      res.status(400);
+
+      throw new Error(
+        "Student-parent relationship already exists. Update the existing relationship if necessary."
+      );
+    }
+
+    // --------------------------------------------------
+    // 8. Only one active primary relationship
+    //    per student
+    // --------------------------------------------------
+
+    if (isPrimary) {
       await StudentParent.updateMany(
         {
           student,
           isActive: true,
+          isPrimary: true,
         },
         {
           $set: {
             isPrimary: false,
           },
-        },
+        }
       );
     }
 
-    /*
-      Create relationship
-    */
-    const studentParent =
-      await StudentParent.create({
-        student,
-        parent,
-        relationship:
-          relationship.toUpperCase(),
-        isPrimary: isPrimary === true,
-        isActive: true,
-      });
+    // --------------------------------------------------
+    // 9. Create relationship
+    // --------------------------------------------------
 
-    /*
-      Return populated relationship
-    */
-    const populatedStudentParent =
-      await populateStudentParent(
-        StudentParent.findById(
-          studentParent._id,
-        ),
-      );
+    const studentParent = await StudentParent.create({
+      student,
+      parent,
+      relationship: normalizedRelationship,
+      isPrimary,
+      isActive: true,
+    });
 
-    res.status(201).json(
-      populatedStudentParent,
+    // --------------------------------------------------
+    // 10. Populate response
+    // --------------------------------------------------
+
+    const result = await populateStudentParent(
+      StudentParent.findById(studentParent._id)
     );
-  },
+
+    res.status(201).json(result);
+  }
 );
 
+
 /*
-  ============================================================
-  GET ALL STUDENT-PARENT RELATIONSHIPS
-  ============================================================
+============================================================
+2. GET STUDENT-PARENT RELATIONSHIPS
+SCHOOL_ADMIN
+
+Optional filters:
+- student
+- parent
+- relationship
+- isPrimary
+- isActive
+============================================================
 */
 
-export const getStudentParents =
-  asyncHandler(async (req, res) => {
+export const getStudentParents = asyncHandler(
+  async (req, res) => {
+    validateAdminAccess(req);
+
     const {
       student,
       parent,
@@ -243,810 +360,639 @@ export const getStudentParents =
       isActive,
     } = req.query;
 
-    const filter = {};
+    // --------------------------------------------------
+    // 1. Validate ObjectIds
+    // --------------------------------------------------
+
+    if (
+      student &&
+      !mongoose.Types.ObjectId.isValid(student)
+    ) {
+      res.status(400);
+      throw new Error("Invalid student ID");
+    }
+
+    if (
+      parent &&
+      !mongoose.Types.ObjectId.isValid(parent)
+    ) {
+      res.status(400);
+      throw new Error("Invalid parent ID");
+    }
+
+    // --------------------------------------------------
+    // 2. Validate selected Student belongs to school
+    // --------------------------------------------------
+
+    if (student) {
+      const studentExists = await Student.exists({
+        _id: student,
+        school: req.schoolId,
+      });
+
+      if (!studentExists) {
+        res.status(404);
+        throw new Error(
+          "Student not found in this school"
+        );
+      }
+    }
+
+    // --------------------------------------------------
+    // 3. Validate selected Parent belongs to school
+    // --------------------------------------------------
+
+    if (parent) {
+      const parentExists = await Parent.exists({
+        _id: parent,
+        school: req.schoolId,
+      });
+
+      if (!parentExists) {
+        res.status(404);
+        throw new Error(
+          "Parent not found in this school"
+        );
+      }
+    }
+
+    // --------------------------------------------------
+    // 4. Get all Student IDs and Parent IDs
+    //    belonging to authorized school
+    // --------------------------------------------------
+
+    const [studentIds, parentIds] = await Promise.all([
+      Student.find({
+        school: req.schoolId,
+      }).distinct("_id"),
+
+      Parent.find({
+        school: req.schoolId,
+      }).distinct("_id"),
+    ]);
+
+    // --------------------------------------------------
+    // 5. Base school-level filter
+    // --------------------------------------------------
+
+    const filter = {
+      student: { $in: studentIds },
+      parent: { $in: parentIds },
+    };
+
+    // --------------------------------------------------
+    // 6. Student filter
+    // --------------------------------------------------
 
     if (student) {
       filter.student = student;
     }
 
+    // --------------------------------------------------
+    // 7. Parent filter
+    // --------------------------------------------------
+
     if (parent) {
       filter.parent = parent;
     }
 
+    // --------------------------------------------------
+    // 8. Relationship filter
+    // --------------------------------------------------
+
     if (relationship) {
-      filter.relationship =
-        relationship.toUpperCase();
-    }
+      const normalizedRelationship =
+        relationship.trim().toUpperCase();
 
-    if (isPrimary !== undefined) {
-      filter.isPrimary =
-        isPrimary === "true";
-    }
+      const allowedRelationships = [
+        "FATHER",
+        "MOTHER",
+        "GUARDIAN",
+        "GRANDFATHER",
+        "GRANDMOTHER",
+        "OTHER",
+      ];
 
-    if (isActive !== undefined) {
-      filter.isActive =
-        isActive === "true";
-    }
-
-    /*
-      Restrict normal users to their school.
-    */
-    if (req.user.role !== "SUPER_ADMIN") {
-      if (!req.schoolId) {
-        res.status(403);
+      if (
+        !allowedRelationships.includes(
+          normalizedRelationship
+        )
+      ) {
+        res.status(400);
         throw new Error(
-          "User is not associated with a school",
+          "Invalid relationship type"
         );
       }
 
-      const studentIds =
-        await Student.find({
-          school: req.schoolId,
-        }).distinct("_id");
-
-      const parentIds =
-        await Parent.find({
-          school: req.schoolId,
-        }).distinct("_id");
-
-      filter.$and = [
-        {
-          $or: [
-            {
-              student: {
-                $in: studentIds,
-              },
-            },
-            {
-              parent: {
-                $in: parentIds,
-              },
-            },
-          ],
-        },
-      ];
+      filter.relationship =
+        normalizedRelationship;
     }
 
-    const relationships =
-      await populateStudentParent(
-        StudentParent.find(filter).sort({
-          student: 1,
-          isPrimary: -1,
-          createdAt: 1,
-        }),
-      );
+    // --------------------------------------------------
+    // 9. Primary Parent filter
+    // --------------------------------------------------
 
-    /*
-      Additional school validation.
-    */
-    const filteredRelationships =
-      req.user.role === "SUPER_ADMIN"
-        ? relationships
-        : relationships.filter((item) => {
-            if (
-              !item.student ||
-              !item.parent
-            ) {
-              return false;
-            }
+    if (isPrimary !== undefined) {
+      if (!["true", "false"].includes(isPrimary)) {
+        res.status(400);
+        throw new Error(
+          "isPrimary must be true or false"
+        );
+      }
 
-            const studentSchool =
-              item.student.school;
+      filter.isPrimary = isPrimary === "true";
+    }
 
-            const parentSchool =
-              item.parent.school;
+    // --------------------------------------------------
+    // 10. Active / Inactive filter
+    // --------------------------------------------------
 
-            return (
-              studentSchool &&
-              parentSchool &&
-              String(studentSchool) ===
-                String(req.schoolId) &&
-              String(parentSchool) ===
-                String(req.schoolId)
-            );
-          });
+    if (isActive !== undefined) {
+      if (!["true", "false"].includes(isActive)) {
+        res.status(400);
+        throw new Error(
+          "isActive must be true or false"
+        );
+      }
 
-    res.status(200).json(
-      filteredRelationships,
+      filter.isActive = isActive === "true";
+    }
+
+    // --------------------------------------------------
+    // 11. Fetch Student-Parent Relationships
+    // --------------------------------------------------
+
+    const relationships = await populateStudentParent(
+      StudentParent.find(filter).sort({
+        student: 1,
+        isPrimary: -1,
+        createdAt: 1,
+      })
     );
-  });
+
+    // --------------------------------------------------
+    // 12. Response
+    // --------------------------------------------------
+
+    res.status(200).json(relationships);
+  }
+);
+
 
 /*
-  ============================================================
-  GET STUDENT-PARENT RELATIONSHIP BY ID
-  ============================================================
+============================================================
+GET PARENTS BY STUDENT
+SCHOOL_ADMIN
+
+GET /student/:studentId
+
+Returns:
+- Student-parent relationship ID
+- Parent details
+- Parent user name
+- Email
+- Phone
+- Relationship (FATHER, MOTHER, GUARDIAN)
+- Primary relationship status
+
+Security:
+- SCHOOL_ADMIN only
+- Student must belong to the resolved school
+- Only active relationships are returned
+- Parent must belong to the same school and be active
+============================================================
 */
 
-export const getStudentParentById =
-  asyncHandler(async (req, res) => {
-    const studentParent =
-      await StudentParent.findById(
-        req.params.id,
-      )
-        .populate(
-          "student",
-          "admissionNumber dateOfBirth gender stream isActive school",
-        )
-        .populate({
-          path: "student",
-          populate: {
-            path: "user",
-            select:
-              "name email phone role isActive",
-          },
-        })
-        .populate("parent")
-        .populate({
-          path: "parent",
-          populate: {
-            path: "user",
-            select:
-              "name email phone role isActive",
-          },
-        });
+export const getParentsByStudent = asyncHandler(
+  async (req, res) => {
+    validateAdminAccess(req);
 
-    if (!studentParent) {
-      res.status(404);
-      throw new Error(
-        "Student-parent relationship not found",
-      );
+    const { studentId } = req.params;
+
+    // Validate student ID
+    if (!mongoose.isValidObjectId(studentId)) {
+      res.status(400);
+
+      throw new Error("Invalid student ID");
     }
 
-    /*
-      Make sure student exists before checking school.
-    */
-    if (!studentParent.student) {
-      res.status(404);
-      throw new Error(
-        "Student associated with this relationship was not found",
-      );
-    }
-
-    if (
-      !checkSchoolAccess(
-        req,
-        studentParent.student.school,
-      )
-    ) {
-      res.status(403);
-      throw new Error(
-        "Not authorized to access this relationship",
-      );
-    }
-
-    res.status(200).json(
-      studentParent,
-    );
-  });
-
-/*
-  ============================================================
-  GET PARENTS BY STUDENT
-  ============================================================
-*/
-
-export const getParentsByStudent =
-  asyncHandler(async (req, res) => {
-    const student =
-      await Student.findById(
-        req.params.studentId,
-      );
+    // Verify student belongs to the logged-in admin's school
+    const student = await Student.findOne({
+      _id: studentId,
+      school: req.schoolId,
+      isActive: true,
+    });
 
     if (!student) {
       res.status(404);
-      throw new Error("Student not found");
-    }
 
-    if (
-      !checkSchoolAccess(
-        req,
-        student.school,
-      )
-    ) {
-      res.status(403);
       throw new Error(
-        "Not authorized to access this student",
+        "Student not found or inactive in this school"
       );
     }
 
-    const relationships =
-      await StudentParent.find({
-        student: student._id,
-        isActive: true,
+    // Retrieve active parent relationships
+    const relationships = await StudentParent.find({
+      student: student._id,
+      isActive: true,
+    })
+      .populate({
+        path: "parent",
+
+        match: {
+          school: req.schoolId,
+          isActive: true,
+        },
+
+        populate: {
+          path: "user",
+          select: "name email phone role isActive",
+        },
       })
-        .populate({
-          path: "parent",
-          populate: {
-            path: "user",
-            select:
-              "name email phone role isActive",
-          },
-        })
-        .sort({
-          isPrimary: -1,
-          createdAt: 1,
-        });
-
-    res.status(200).json(
-      relationships,
-    );
-  });
-
-/*
-  ============================================================
-  GET STUDENTS BY PARENT
-  ============================================================
-*/
-
-export const getStudentsByParent =
-  asyncHandler(async (req, res) => {
-    const parent =
-      await Parent.findById(
-        req.params.parentId,
-      );
-
-    if (!parent) {
-      res.status(404);
-      throw new Error("Parent not found");
-    }
-
-    if (
-      !checkSchoolAccess(
-        req,
-        parent.school,
-      )
-    ) {
-      res.status(403);
-      throw new Error(
-        "Not authorized to access this parent",
-      );
-    }
-
-    const relationships =
-      await StudentParent.find({
-        parent: parent._id,
-        isActive: true,
-      })
-        .populate({
-          path: "student",
-          populate: {
-            path: "user",
-            select:
-              "name email phone role isActive",
-          },
-        })
-        .sort({
-          createdAt: 1,
-        });
-
-    res.status(200).json(
-      relationships,
-    );
-  });
-
-/*
-  ============================================================
-  GET MY CHILDREN
-  ============================================================
-*/
-
-export const getMyChildren =
-  asyncHandler(async (req, res) => {
-    if (!req.schoolId) {
-      res.status(403);
-      throw new Error(
-        "User is not associated with a school",
-      );
-    }
-
-    const parent =
-      await Parent.findOne({
-        user: req.user._id,
-        school: req.schoolId,
-        isActive: true,
+      .sort({
+        isPrimary: -1,
+        createdAt: 1,
       });
 
-    if (!parent) {
-      res.status(404);
+    // Remove relationships where parent is inactive
+    // or does not belong to this school
+    const validRelationships = relationships.filter(
+      (relationship) => relationship.parent
+    );
+
+    res.status(200).json(validRelationships);
+  }
+);
+
+export const getStudentParentById = asyncHandler(
+  async (req, res) => {
+    validateAdminAccess(req);
+
+    const { id } = req.params;
+
+    // --------------------------------------------------
+    // 1. Validate ObjectId
+    // --------------------------------------------------
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      res.status(400);
+
       throw new Error(
-        "Parent profile not found",
+        "Invalid student-parent relationship ID"
       );
     }
 
-    const relationships =
-      await StudentParent.find({
-        parent: parent._id,
-        isActive: true,
-      })
-        .populate({
-          path: "student",
-          populate: {
-            path: "user",
-            select:
-              "name email phone role isActive",
-          },
-        })
-        .sort({
-          createdAt: 1,
-        });
+    // --------------------------------------------------
+    // 2. Find relationship
+    // --------------------------------------------------
 
-    res.status(200).json(
-      relationships,
-    );
-  });
-
-/*
-  ============================================================
-  UPDATE STUDENT-PARENT RELATIONSHIP
-  ============================================================
-
-  Supports:
-
-  - student
-  - parent
-  - relationship
-  - isPrimary
-  - isActive
-
-  IMPORTANT UX:
-
-  When editing from Student Details, the frontend
-  should NOT allow changing the student.
-
-  The backend still supports changing student because
-  this endpoint is the general-purpose relationship
-  update endpoint.
-*/
-export const updateStudentParent =
-  asyncHandler(async (req, res) => {
-    const studentParent =
-      await StudentParent.findById(
-        req.params.id,
-      );
+    const studentParent = await StudentParent.findById(id);
 
     if (!studentParent) {
       res.status(404);
+
       throw new Error(
-        "Student-parent relationship not found",
+        "Student-parent relationship not found"
       );
     }
 
-    /*
-      Get current student.
-    */
-    const currentStudent =
-      await Student.findById(
-        studentParent.student,
-      );
+    // --------------------------------------------------
+    // 3. Validate Student belongs to authorized school
+    // --------------------------------------------------
 
-    if (!currentStudent) {
+    const studentExists = await Student.exists({
+      _id: studentParent.student,
+      school: req.schoolId,
+    });
+
+    if (!studentExists) {
       res.status(404);
-      throw new Error("Student not found");
-    }
 
-    /*
-      First authorization check using
-      the current student.
-    */
-    if (
-      !checkSchoolAccess(
-        req,
-        currentStudent.school,
-      )
-    ) {
-      res.status(403);
       throw new Error(
-        "Not authorized to update this relationship",
+        "Student-parent relationship not found in this school"
       );
     }
 
-    /*
-      Read request body.
-    */
+    // --------------------------------------------------
+    // 4. Validate Parent belongs to authorized school
+    // --------------------------------------------------
+
+    const parentExists = await Parent.exists({
+      _id: studentParent.parent,
+      school: req.schoolId,
+    });
+
+    if (!parentExists) {
+      res.status(404);
+
+      throw new Error(
+        "Student-parent relationship not found in this school"
+      );
+    }
+
+    // --------------------------------------------------
+    // 5. Populate relationship details
+    // --------------------------------------------------
+
+    const result = await populateStudentParent(
+      StudentParent.findById(id)
+    );
+
+    // --------------------------------------------------
+    // 6. Response
+    // --------------------------------------------------
+
+    res.status(200).json(result);
+  }
+);
+
+/*
+============================================================
+3. UPDATE STUDENT-PARENT RELATIONSHIP
+SCHOOL_ADMIN
+
+Supported fields:
+- relationship
+- isPrimary
+- isActive
+
+Student and Parent references cannot be changed here.
+Delete and recreate the relationship if necessary.
+============================================================
+*/
+
+
+
+export const updateStudentParent = asyncHandler(
+  async (req, res) => {
+    validateAdminAccess(req);
+
+    const { id } = req.params;
+
+    // --------------------------------------------------
+    // 1. Validate ObjectId
+    // --------------------------------------------------
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      res.status(400);
+
+      throw new Error(
+        "Invalid student-parent relationship ID"
+      );
+    }
+
+    // --------------------------------------------------
+    // 2. Find relationship
+    // --------------------------------------------------
+
+    const studentParent =
+      await StudentParent.findById(id);
+
+    if (!studentParent) {
+      res.status(404);
+
+      throw new Error(
+        "Student-parent relationship not found"
+      );
+    }
+
+    // --------------------------------------------------
+    // 3. Verify Student and Parent belong to school
+    // --------------------------------------------------
+
+    await validateStudentAndParent(
+      studentParent.student,
+      studentParent.parent,
+      req.schoolId
+    );
+
+    // --------------------------------------------------
+    // 4. Extract request body
+    // --------------------------------------------------
+
     const {
-      student: newStudent,
-      parent: newParent,
       relationship,
       isPrimary,
       isActive,
     } = req.body;
 
-    /*
-      Determine final student and parent.
+    // --------------------------------------------------
+    // 5. Validate allowed fields
+    // --------------------------------------------------
 
-      If they are not supplied, keep the
-      existing values.
-    */
-    const finalStudent =
-      newStudent !== undefined
-        ? newStudent
-        : String(studentParent.student);
+    const allowedFields = [
+      "relationship",
+      "isPrimary",
+      "isActive",
+    ];
 
-    const finalParent =
-      newParent !== undefined
-        ? newParent
-        : String(studentParent.parent);
+    const invalidFields = Object.keys(req.body).filter(
+      (field) => !allowedFields.includes(field)
+    );
 
-    /*
-      Validate final Student + Parent combination.
-
-      This also checks:
-
-      - Student exists
-      - Student is active
-      - Parent exists
-      - Parent is active
-      - Same school
-    */
-    const validation =
-      await validateStudentAndParent(
-        finalStudent,
-        finalParent,
-      );
-
-    if (validation.error) {
+    if (invalidFields.length > 0) {
       res.status(400);
+
       throw new Error(
-        validation.error,
+        `Invalid fields: ${invalidFields.join(", ")}`
       );
     }
 
-    const {
-      student: finalStudentRecord,
-      parent: finalParentRecord,
-    } = validation;
+    // --------------------------------------------------
+    // 6. Validate at least one field
+    // --------------------------------------------------
 
-    /*
-      Make sure the final student belongs
-      to the requesting user's school.
-    */
     if (
-      !checkSchoolAccess(
-        req,
-        finalStudentRecord.school,
-      )
-    ) {
-      res.status(403);
-      throw new Error(
-        "Not authorized to access this school",
-      );
-    }
-
-    /*
-      Also make sure the parent belongs
-      to the same authorized school.
-    */
-    if (
-      !checkSchoolAccess(
-        req,
-        finalParentRecord.school,
-      )
-    ) {
-      res.status(403);
-      throw new Error(
-        "Not authorized to access this parent",
-      );
-    }
-
-    /*
-      Prevent duplicate student-parent relationship.
-
-      Example:
-
-      Arun + Raj already exists
-
-      Admin tries to edit another relationship
-      to Arun + Raj
-
-      This must be rejected.
-    */
-    const duplicate =
-      await StudentParent.findOne({
-        student: finalStudentRecord._id,
-        parent: finalParentRecord._id,
-        _id: {
-          $ne: studentParent._id,
-        },
-      });
-
-    if (duplicate) {
-      res.status(400);
-      throw new Error(
-        "Student-parent relationship already exists",
-      );
-    }
-
-    /*
-      Determine final relationship status.
-
-      If isActive is omitted, preserve
-      the current status.
-    */
-    const finalIsActive =
-      isActive !== undefined
-        ? isActive
-        : studentParent.isActive;
-
-    /*
-      Validate isActive when provided.
-    */
-    if (
-      isActive !== undefined &&
-      typeof isActive !== "boolean"
+      relationship === undefined &&
+      isPrimary === undefined &&
+      isActive === undefined
     ) {
       res.status(400);
+
       throw new Error(
-        "isActive must be true or false",
+        "No valid fields provided for update"
       );
     }
 
-    /*
-      Determine final primary status.
-    */
-    const finalIsPrimary =
-      isPrimary !== undefined
-        ? isPrimary
-        : studentParent.isPrimary;
+    // --------------------------------------------------
+    // 7. Validate relationship
+    // --------------------------------------------------
 
-    /*
-      Validate isPrimary when provided.
-    */
+    if (relationship !== undefined) {
+      const allowedRelationships = [
+        "FATHER",
+        "MOTHER",
+        "GUARDIAN",
+        "GRANDFATHER",
+        "GRANDMOTHER",
+        "OTHER",
+      ];
+
+      if (
+        typeof relationship !== "string" ||
+        !relationship.trim()
+      ) {
+        res.status(400);
+
+        throw new Error(
+          "Invalid relationship"
+        );
+      }
+
+      const normalizedRelationship =
+        relationship.trim().toUpperCase();
+
+      if (
+        !allowedRelationships.includes(
+          normalizedRelationship
+        )
+      ) {
+        res.status(400);
+
+        throw new Error(
+          "Invalid relationship type"
+        );
+      }
+
+      studentParent.relationship =
+        normalizedRelationship;
+    }
+
+    // --------------------------------------------------
+    // 8. Validate isPrimary
+    // --------------------------------------------------
+
     if (
       isPrimary !== undefined &&
       typeof isPrimary !== "boolean"
     ) {
       res.status(400);
+
       throw new Error(
-        "isPrimary must be true or false",
+        "isPrimary must be true or false"
       );
     }
 
-    /*
-      An inactive relationship cannot be primary.
-    */
+    // --------------------------------------------------
+    // 9. Validate isActive
+    // --------------------------------------------------
+
     if (
-      finalIsPrimary === true &&
-      finalIsActive === false
+      isActive !== undefined &&
+      typeof isActive !== "boolean"
     ) {
       res.status(400);
+
       throw new Error(
-        "An inactive relationship cannot be primary",
+        "isActive must be true or false"
       );
     }
 
-    /*
-      Validate relationship when provided.
-    */
-    if (
-      relationship !== undefined &&
-      (!relationship ||
-        typeof relationship !== "string")
-    ) {
+    // --------------------------------------------------
+    // 10. Determine final values
+    // --------------------------------------------------
+
+    const finalIsActive =
+      isActive !== undefined
+        ? isActive
+        : studentParent.isActive;
+
+    const finalIsPrimary =
+      isPrimary !== undefined
+        ? isPrimary
+        : studentParent.isPrimary;
+
+    // --------------------------------------------------
+    // 11. Validate primary relationship
+    // --------------------------------------------------
+
+    if (!finalIsActive && finalIsPrimary) {
       res.status(400);
+
       throw new Error(
-        "Relationship must be a valid value",
+        "An inactive relationship cannot be primary"
       );
     }
 
-    /*
-      Update Student.
-    */
-    studentParent.student =
-      finalStudentRecord._id;
+    // --------------------------------------------------
+    // 12. Maintain one active primary relationship
+    // --------------------------------------------------
 
-    /*
-      Update Parent.
-    */
-    studentParent.parent =
-      finalParentRecord._id;
-
-    /*
-      Update relationship.
-    */
-    if (relationship !== undefined) {
-      studentParent.relationship =
-        relationship.toUpperCase();
-    }
-
-    /*
-      If relationship becomes primary,
-      remove primary status from all
-      other active relationships for
-      the final student.
-    */
-    if (finalIsPrimary === true) {
+    if (finalIsPrimary) {
       await StudentParent.updateMany(
         {
-          student:
-            finalStudentRecord._id,
-          _id: {
-            $ne: studentParent._id,
-          },
+          student: studentParent.student,
+          _id: { $ne: studentParent._id },
           isActive: true,
+          isPrimary: true,
         },
         {
           $set: {
             isPrimary: false,
           },
-        },
-      );
-
-      studentParent.isPrimary = true;
-    } else {
-      studentParent.isPrimary = false;
-    }
-
-    /*
-      Update active status.
-    */
-    studentParent.isActive =
-      finalIsActive;
-
-    /*
-      Safety rule:
-
-      If relationship is inactive,
-      it can never remain primary.
-    */
-    if (!studentParent.isActive) {
-      studentParent.isPrimary = false;
-    }
-
-    /*
-      Save changes.
-    */
-    const updatedStudentParent =
-      await studentParent.save();
-
-    /*
-      Return fully populated relationship.
-    */
-    const populatedStudentParent =
-      await populateStudentParent(
-        StudentParent.findById(
-          updatedStudentParent._id,
-        ),
-      );
-
-    res.status(200).json(
-      populatedStudentParent,
-    );
-  });
-
-/*
-  ============================================================
-  UPDATE RELATIONSHIP STATUS
-  ============================================================
-
-  Used by the quick Activate / Deactivate
-  button on Student Details.
-*/
-export const updateStudentParentStatus =
-  asyncHandler(async (req, res) => {
-    const studentParent =
-      await StudentParent.findById(
-        req.params.id,
-      );
-
-    if (!studentParent) {
-      res.status(404);
-      throw new Error(
-        "Student-parent relationship not found",
+        }
       );
     }
 
-    const student =
-      await Student.findById(
-        studentParent.student,
-      );
+    // --------------------------------------------------
+    // 13. Update relationship
+    // --------------------------------------------------
 
-    if (!student) {
-      res.status(404);
-      throw new Error("Student not found");
-    }
+    studentParent.isActive = finalIsActive;
 
-    /*
-      School authorization.
-    */
-    if (
-      !checkSchoolAccess(
-        req,
-        student.school,
-      )
-    ) {
-      res.status(403);
-      throw new Error(
-        "Not authorized to update this relationship",
-      );
-    }
-
-    const { isActive } = req.body;
-
-    /*
-      Validate boolean.
-    */
-    if (typeof isActive !== "boolean") {
-      res.status(400);
-      throw new Error(
-        "isActive must be true or false",
-      );
-    }
-
-    /*
-      Update status.
-    */
-    studentParent.isActive =
-      isActive;
-
-    /*
-      An inactive relationship cannot
-      remain primary.
-    */
-    if (!isActive) {
-      studentParent.isPrimary = false;
-    }
+    studentParent.isPrimary = finalIsPrimary;
 
     await studentParent.save();
 
-    /*
-      Return populated relationship.
-    */
-    const populatedStudentParent =
-      await populateStudentParent(
-        StudentParent.findById(
-          studentParent._id,
-        ),
-      );
+    // --------------------------------------------------
+    // 14. Populate updated relationship
+    // --------------------------------------------------
 
-    res.status(200).json(
-      populatedStudentParent,
+    const result = await populateStudentParent(
+      StudentParent.findById(studentParent._id)
     );
-  });
+
+    // --------------------------------------------------
+    // 15. Response
+    // --------------------------------------------------
+
+    res.status(200).json(result);
+  }
+);
+
+
+
 
 /*
-  ============================================================
-  DELETE STUDENT-PARENT RELATIONSHIP
-  ============================================================
+============================================================
+4. DELETE STUDENT-PARENT RELATIONSHIP
+SCHOOL_ADMIN
+============================================================
 */
 
-export const deleteStudentParent =
-  asyncHandler(async (req, res) => {
-    const studentParent =
-      await StudentParent.findById(
-        req.params.id,
-      );
+export const deleteStudentParent = asyncHandler(
+  async (req, res) => {
+    validateAdminAccess(req);
+
+    const studentParent = await StudentParent.findById(
+      req.params.id
+    );
 
     if (!studentParent) {
       res.status(404);
+
       throw new Error(
-        "Student-parent relationship not found",
+        "Student-parent relationship not found"
       );
     }
 
-    const student =
-      await Student.findById(
-        studentParent.student,
-      );
+    // Validate school ownership
 
-    if (!student) {
-      res.status(404);
-      throw new Error("Student not found");
-    }
-
-    /*
-      School authorization.
-    */
-    if (
-      !checkSchoolAccess(
-        req,
-        student.school,
-      )
-    ) {
-      res.status(403);
-      throw new Error(
-        "Not authorized to delete this relationship",
-      );
-    }
+    await validateStudentAndParent(
+      studentParent.student,
+      studentParent.parent,
+      req.schoolId
+    );
 
     await studentParent.deleteOne();
 
@@ -1054,4 +1000,107 @@ export const deleteStudentParent =
       message:
         "Student-parent relationship deleted successfully",
     });
-  });
+  }
+);
+
+
+/*
+============================================================
+5. GET MY CHILDREN
+PARENT
+============================================================
+*/
+
+export const getMyChildren = asyncHandler(
+  async (req, res) => {
+
+    if (req.user.role !== "PARENT") {
+      res.status(403);
+
+      throw new Error(
+        "Only parents can access their children"
+      );
+    }
+
+    if (!req.schoolId) {
+      res.status(403);
+
+      throw new Error(
+        "User is not associated with a school"
+      );
+    }
+
+    // Find logged-in parent's profile
+
+    const parent = await Parent.findOne({
+      user: req.user._id,
+      school: req.schoolId,
+      isActive: true,
+    });
+
+    if (!parent) {
+      res.status(404);
+
+      throw new Error(
+        "Parent profile not found"
+      );
+    }
+
+    // Retrieve only this parent's active relationships
+
+    const relationships = await StudentParent.find({
+      parent: parent._id,
+      isActive: true,
+    })
+      .populate({
+        path: "student",
+
+        match: {
+          school: req.schoolId,
+          isActive: true,
+        },
+
+        select:
+          "admissionNumber dateOfBirth gender academicYear class section stream subjects isActive",
+
+        populate: [
+          {
+            path: "user",
+            select: "name",
+          },
+          {
+            path: "academicYear",
+            select: "name",
+          },
+          {
+            path: "class",
+            select: "name",
+          },
+          {
+            path: "section",
+            select: "name",
+          },
+          {
+            path: "stream",
+            select: "name",
+          },
+          {
+            path: "subjects.subject",
+            select: "name code",
+          },
+        ],
+      })
+      .sort({
+        isPrimary: -1,
+        createdAt: 1,
+      });
+
+    // Remove inactive or missing students
+
+    const children = relationships.filter(
+      (item) => item.student
+    );
+
+    res.status(200).json(children);
+  }
+);

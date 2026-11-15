@@ -35,6 +35,10 @@ const AcademicYearListScreen = () => {
 
   const isSuperAdmin = userInfo?.role === "SUPER_ADMIN";
 
+  const canManageAcademicYear = ["SCHOOL_ADMIN", "HM"].includes(
+  userInfo?.role
+);
+
   /*
    * ======================================================
    * State
@@ -402,17 +406,18 @@ const AcademicYearListScreen = () => {
             </button>
 
 
-            <button
-              type="button"
-              onClick={() =>
-                navigate("/admin/academic-years/create")
-              }
-              className="inline-flex items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700"
-            >
-              <Plus className="h-4 w-4" />
-
-              Add Academic Year
-            </button>
+            {canManageAcademicYear && (
+  <button
+    type="button"
+    onClick={() =>
+      navigate("/admin/academic-years/create")
+    }
+    className="inline-flex items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700"
+  >
+    <Plus className="h-4 w-4" />
+    Add Academic Year
+  </button>
+)}
 
           </div>
 
@@ -663,22 +668,21 @@ const AcademicYearListScreen = () => {
                   : "Create your first academic year to get started."}
               </p>
 
-              {!searchTerm &&
-                statusFilter === "ALL" &&
-                currentFilter === "ALL" && (
-                  <button
-                    type="button"
-                    onClick={() =>
-                      navigate(
-                        "/admin/academic-years/create",
-                      )
-                    }
-                    className="mt-5 inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-700"
-                  >
-                    <Plus className="h-4 w-4" />
-                    Add Academic Year
-                  </button>
-                )}
+              {canManageAcademicYear &&
+  !searchTerm &&
+  statusFilter === "ALL" &&
+  currentFilter === "ALL" && (
+    <button
+      type="button"
+      onClick={() =>
+        navigate("/admin/academic-years/create")
+      }
+      className="mt-5 inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-700"
+    >
+      <Plus className="h-4 w-4" />
+      Add Academic Year
+    </button>
+  )}
 
             </div>
           ) : (

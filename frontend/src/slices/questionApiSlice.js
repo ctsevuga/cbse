@@ -17,31 +17,35 @@ export const questionApiSlice = apiSlice.injectEndpoints({
       ],
     }),
 
-    getQuestions: builder.query({
-      query: (params = {}) => ({
-        url: QUESTION_URL,
-        params,
-      }),
-      providesTags: (result) =>
-        result
-          ? [
-              ...result.map((question) => ({
-                type: "Question",
-                id: question._id,
-              })),
-              {
-                type: "Question",
-                id: "LIST",
-              },
-            ]
-          : [
-              {
-                type: "Question",
-                id: "LIST",
-              },
-            ],
-      keepUnusedDataFor: 5,
-    }),
+    
+getQuestions: builder.query({
+  query: (params = {}) => ({
+    url: QUESTION_URL,
+    params,
+  }),
+
+  providesTags: (result) => {
+    const questions = Array.isArray(result)
+      ? result
+      : Array.isArray(result?.questions)
+        ? result.questions
+        : [];
+
+    return [
+      ...questions.map((question) => ({
+        type: "Question",
+        id: question._id,
+      })),
+      {
+        type: "Question",
+        id: "LIST",
+      },
+    ];
+  },
+
+  keepUnusedDataFor: 5,
+}),
+
 
     getQuestionDetails: builder.query({
       query: (questionId) => ({
@@ -80,6 +84,34 @@ export const questionApiSlice = apiSlice.injectEndpoints({
             ],
       keepUnusedDataFor: 5,
     }),
+
+
+getAssignmentQuestions: builder.query({
+  query: (params = {}) => ({
+    url: `${QUESTION_URL}/assignment-questions`,
+    params,
+  }),
+
+  providesTags: (result) => {
+    const questions = Array.isArray(result?.questions)
+      ? result.questions
+      : [];
+
+    return [
+      ...questions.map((question) => ({
+        type: "Question",
+        id: question._id,
+      })),
+      {
+        type: "Question",
+        id: "ASSIGNMENT-LIST",
+      },
+    ];
+  },
+
+  keepUnusedDataFor: 5,
+}),
+
 
     getQuestionsByChapter: builder.query({
       query: (chapterId) => ({
@@ -335,6 +367,7 @@ export const questionApiSlice = apiSlice.injectEndpoints({
 export const {
   useCreateQuestionMutation,
   useGetQuestionsQuery,
+  useGetAssignmentQuestionsQuery, // Added
   useGetQuestionDetailsQuery,
   useGetQuestionsBySubjectQuery,
   useGetQuestionsByChapterQuery,

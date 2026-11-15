@@ -163,8 +163,18 @@ const StudentAttemptsScreen = () => {
   };
 
   const handleViewAttempt = (attempt) => {
-    navigate(`/student/attempts/${attempt._id}`);
-  };
+  const assessmentId = attempt.assessment?._id;
+  const studentId = attempt.student?._id;
+
+  if (!assessmentId || !studentId) {
+    console.error("Assessment ID or Student ID is missing");
+    return;
+  }
+
+  navigate(
+    `/results/assessment/${assessmentId}/student/${studentId}`
+  );
+};
 
   const clearFilters = () => {
     setStatus("");

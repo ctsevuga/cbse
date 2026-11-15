@@ -119,45 +119,43 @@ export const assessmentSectionApiSlice =
           keepUnusedDataFor: 5,
         }),
 
-      getAssessmentSectionsByAssessment:
-        builder.query({
-          query: (assessmentId) => ({
-            url: `${ASESSMENT_SECTION_URL}/assessment/${assessmentId}`,
-          }),
-          providesTags: (
-            result,
-            error,
-            assessmentId,
-          ) =>
-            result
-              ? [
-                  ...result.map(
-                    (section) => ({
-                      type: "AssessmentSection",
-                      id: section._id,
-                    }),
-                  ),
-                  {
-                    type: "AssessmentSection",
-                    id: `ASSESSMENT-${assessmentId}`,
-                  },
-                  {
-                    type: "AssessmentSection",
-                    id: "LIST",
-                  },
-                ]
-              : [
-                  {
-                    type: "AssessmentSection",
-                    id: `ASSESSMENT-${assessmentId}`,
-                  },
-                  {
-                    type: "AssessmentSection",
-                    id: "LIST",
-                  },
-                ],
-          keepUnusedDataFor: 5,
-        }),
+      getAssessmentSectionsByAssessment: builder.query({
+  query: (assessmentId) => ({
+    url: `${ASESSMENT_SECTION_URL}/assessment/${assessmentId}`,
+  }),
+  providesTags: (result) => {
+  const sections = Array.isArray(result)
+    ? result
+    : result?.sections || [];
+
+  return [
+    { type: "AssessmentSection", id: "LIST" },
+    ...sections.map(({ _id }) => ({
+      type: "AssessmentSection",
+      id: _id,
+    })),
+  ];
+},
+  keepUnusedDataFor: 5,
+}),
+
+createAssessmentSection: builder.mutation({
+  query: (data) => ({
+    url: ASESSMENT_SECTION_URL,
+    method: "POST",
+    body: data,
+  }),
+  invalidatesTags: (result, error, arg) => [
+    {
+      type: "AssessmentSection",
+      id: `ASSESSMENT-${arg.assessment}`,
+    },
+    {
+      type: "AssessmentSection",
+      id: "LIST",
+    },
+  ],
+}),
 
       getAssessmentSectionsByQuestionType:
         builder.query({

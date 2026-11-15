@@ -282,16 +282,16 @@ console.log("Login payload:", {
   // ============================================
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500 px-4 py-10">
-      <div className="w-full max-w-sm sm:max-w-md md:max-w-lg bg-white/10 backdrop-blur-xl border border-white/20 shadow-2xl rounded-2xl px-6 sm:px-8 py-8">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500 px-3 py-4 sm:px-4 sm:py-5">
+      <div className="w-full max-w-2xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-2xl rounded-2xl px-4 py-4 sm:px-6 sm:py-5">
         {/* HEADER */}
 
-        <div className="text-center mb-6">
-          <h2 className="text-2xl sm:text-3xl font-bold text-white">
+        <div className="text-center mb-3">
+          <h2 className="text-xl sm:text-2xl font-bold text-white">
             Welcome Back
           </h2>
 
-          <h5 className="text-white/70 font-bold sm:text-xl mt-1">
+          <h5 className="text-white/70 font-medium text-sm sm:text-base mt-1">
             Sign in to continue
           </h5>
         </div>
@@ -310,11 +310,12 @@ console.log("Login payload:", {
 
         <form
           onSubmit={submitHandler}
-          className="space-y-5"
+          className="space-y-3"
         >
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {/* STATE FILTER */}
 
-          <div className="flex flex-col gap-2 bg-white/5 p-3 sm:p-4 rounded-xl border border-white/10">
+          <div className="flex flex-col gap-1 bg-white/5 p-2.5 rounded-xl border border-white/10">
             <label
               htmlFor="state"
               className="text-sm font-medium text-indigo-100 tracking-wide"
@@ -332,7 +333,7 @@ console.log("Login payload:", {
                 states.length === 0 ||
                 isLoading
               }
-              className="w-full h-12 px-4 rounded-lg bg-white text-gray-800 border border-transparent focus:border-indigo-500 focus:ring-2 focus:ring-indigo-400 outline-none transition shadow-sm disabled:opacity-60"
+              className="w-full h-10 px-3 rounded-lg bg-white text-gray-800 border border-transparent focus:border-indigo-500 focus:ring-2 focus:ring-indigo-400 outline-none transition shadow-sm disabled:opacity-60"
             >
               <option value="">
                 {isSchoolsLoading
@@ -352,7 +353,7 @@ console.log("Login payload:", {
 
           {/* CITY FILTER */}
 
-          <div className="flex flex-col gap-2 bg-white/5 p-3 sm:p-4 rounded-xl border border-white/10">
+          <div className="flex flex-col gap-1 bg-white/5 p-2.5 rounded-xl border border-white/10">
             <label
               htmlFor="city"
               className="text-sm font-medium text-indigo-100 tracking-wide"
@@ -370,7 +371,7 @@ console.log("Login payload:", {
                 cities.length === 0 ||
                 isLoading
               }
-              className="w-full h-12 px-4 rounded-lg bg-white text-gray-800 border border-transparent focus:border-indigo-500 focus:ring-2 focus:ring-indigo-400 outline-none transition shadow-sm disabled:opacity-60"
+              className="w-full h-10 px-3 rounded-lg bg-white text-gray-800 border border-transparent focus:border-indigo-500 focus:ring-2 focus:ring-indigo-400 outline-none transition shadow-sm disabled:opacity-60"
             >
               <option value="">
                 {selectedState
@@ -386,9 +387,11 @@ console.log("Login payload:", {
             </select>
           </div>
 
+          </div>
+
           {/* SCHOOL SELECTOR */}
 
-          <div className="flex flex-col gap-2 bg-white/5 p-3 sm:p-4 rounded-xl border border-white/10">
+          <div className="flex flex-col gap-1 bg-white/5 p-2.5 rounded-xl border border-white/10">
             <label
               htmlFor="school"
               className="text-sm font-medium text-indigo-100 tracking-wide"
@@ -407,7 +410,7 @@ console.log("Login payload:", {
                 isLoading
               }
               required
-              className="w-full h-12 px-4 rounded-lg bg-white text-gray-800 border border-transparent focus:border-indigo-500 focus:ring-2 focus:ring-indigo-400 outline-none transition shadow-sm disabled:opacity-60"
+              className="w-full h-10 px-3 rounded-lg bg-white text-gray-800 border border-transparent focus:border-indigo-500 focus:ring-2 focus:ring-indigo-400 outline-none transition shadow-sm disabled:opacity-60"
             >
               <option value="">
                 {isSchoolsLoading
@@ -466,9 +469,10 @@ console.log("Login payload:", {
               )}
           </div>
 
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {/* PHONE */}
 
-          <div className="flex flex-col gap-2 bg-white/5 p-3 sm:p-4 rounded-xl border border-white/10">
+          <div className="flex flex-col gap-1 bg-white/5 p-2.5 rounded-xl border border-white/10">
             <label
               htmlFor="phone"
               className="text-sm font-medium text-indigo-100 tracking-wide"
@@ -484,15 +488,14 @@ console.log("Login payload:", {
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               autoComplete="tel"
-              autoFocus
               required
-              className="w-full h-11 sm:h-12 px-4 rounded-lg bg-white text-gray-800 placeholder-gray-400 border border-transparent focus:border-indigo-500 focus:ring-2 focus:ring-indigo-400 outline-none transition shadow-sm"
+              className="w-full h-10 px-3 rounded-lg bg-white text-gray-800 placeholder-gray-400 border border-transparent focus:border-indigo-500 focus:ring-2 focus:ring-indigo-400 outline-none transition shadow-sm"
             />
           </div>
 
           {/* PASSWORD */}
 
-          <div className="flex flex-col gap-2 bg-white/5 p-3 sm:p-4 rounded-xl border border-white/10">
+          <div className="flex flex-col gap-1 bg-white/5 p-2.5 rounded-xl border border-white/10">
             <label
               htmlFor="password"
               className="text-sm font-medium text-indigo-100 tracking-wide"
@@ -508,7 +511,7 @@ console.log("Login payload:", {
               onChange={(e) => setPassword(e.target.value)}
               autoComplete="current-password"
               required
-              className="w-full h-12 rounded-lg bg-white text-gray-800 placeholder-gray-400 border border-transparent focus:border-indigo-500 focus:ring-2 focus:ring-indigo-400 outline-none transition shadow-sm px-4"
+              className="w-full h-10 rounded-lg bg-white text-gray-800 placeholder-gray-400 border border-transparent focus:border-indigo-500 focus:ring-2 focus:ring-indigo-400 outline-none transition shadow-sm px-4"
             />
 
             <button
@@ -516,15 +519,17 @@ console.log("Login payload:", {
               onClick={() =>
                 setShowPassword((prev) => !prev)
               }
-              className="self-start text-sm font-medium text-indigo-200 hover:text-indigo-400 transition px-1 py-1"
+              className="self-start text-xs font-medium text-indigo-200 hover:text-indigo-400 transition px-1"
             >
               {showPassword ? "Hide password" : "Show password"}
             </button>
           </div>
 
+          </div>
+
           {/* ACTIONS */}
 
-          <div className="flex flex-col sm:flex-row gap-3 pt-3">
+          <div className="grid grid-cols-2 gap-3 pt-1">
             <button
               type="submit"
               disabled={
@@ -533,7 +538,7 @@ console.log("Login payload:", {
                 isSchoolsError ||
                 !schoolSlug
               }
-              className="flex-1 h-12 rounded-xl font-semibold text-white bg-gradient-to-r from-cyan-500 via-sky-600 to-blue-700 hover:from-indigo-600 hover:via-purple-600 hover:to-pink-600 shadow-lg hover:shadow-xl transition-all duration-200 active:scale-[0.98] flex items-center justify-center disabled:opacity-60 disabled:cursor-not-allowed"
+              className="w-full h-10 rounded-xl font-semibold text-white bg-gradient-to-r from-cyan-500 via-sky-600 to-blue-700 hover:from-indigo-600 hover:via-purple-600 hover:to-pink-600 shadow-lg hover:shadow-xl transition-all duration-200 active:scale-[0.98] flex items-center justify-center disabled:opacity-60 disabled:cursor-not-allowed"
             >
               {isLoading ? (
                 <span className="animate-pulse tracking-wide">
@@ -549,7 +554,7 @@ console.log("Login payload:", {
               onClick={() =>
                 setShowForgotPassword((prev) => !prev)
               }
-              className="flex-1 h-12 rounded-xl font-semibold text-white bg-white/10 border border-white/30 hover:bg-white/20 transition-all duration-200 active:scale-[0.98]"
+              className="w-full h-10 rounded-xl font-semibold text-white bg-white/10 border border-white/30 hover:bg-white/20 transition-all duration-200 active:scale-[0.98]"
             >
               Forgot Password
             </button>
@@ -559,7 +564,7 @@ console.log("Login payload:", {
         {/* FORGOT PASSWORD FORM */}
 
         {showForgotPassword && (
-          <div className="mt-6 p-4 rounded-xl bg-white/10 border border-white/20">
+          <div className="mt-3 p-3 rounded-xl bg-white/10 border border-white/20">
             <div className="mb-4">
               <h3 className="text-lg font-semibold text-white">
                 Forgot Password?
@@ -593,7 +598,7 @@ console.log("Login payload:", {
                 }
                 autoComplete="tel"
                 required
-                className="w-full h-12 px-4 rounded-lg bg-white text-gray-800 placeholder-gray-400 border border-transparent focus:border-indigo-500 focus:ring-2 focus:ring-indigo-400 outline-none transition shadow-sm"
+                className="w-full h-10 px-3 rounded-lg bg-white text-gray-800 placeholder-gray-400 border border-transparent focus:border-indigo-500 focus:ring-2 focus:ring-indigo-400 outline-none transition shadow-sm"
               />
 
               <button
@@ -614,7 +619,7 @@ console.log("Login payload:", {
 
         {/* FOOTER */}
 
-        <div className="text-center mt-6 text-white/70 text-sm">
+        <div className="text-center mt-3 text-white/70 text-xs">
           Students are created and managed by their
           school administrator.
         </div>

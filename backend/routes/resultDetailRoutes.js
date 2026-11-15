@@ -22,6 +22,7 @@ import {
   teacher,
   hmOrAdmin,
 } from "../middleware/authMiddleware.js";
+import resolveSchool from "../middleware/resolveSchool.js";
 
 const router = express.Router();
 
@@ -86,8 +87,9 @@ Result Details By Result
 */
 
 router.get(
-  "/result/:resultId",
+  "/:slug/result/:resultId",
   protect,
+  resolveSchool,
   getResultDetailsByResult,
 );
 

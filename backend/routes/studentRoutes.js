@@ -3,6 +3,7 @@ import express from "express";
 import {
   createStudent,
   getStudents,
+  getStudentsByTeacherAssignment,
   getStudentById,
   getStudentByUser,
   getMyStudentProfile,
@@ -15,6 +16,8 @@ import {
   protect,
   adminOrSuperAdmin,
 } from "../middleware/authMiddleware.js";
+
+import resolveSchool from "../middleware/resolveSchool.js";
 
 const router = express.Router();
 
@@ -98,6 +101,45 @@ router.get(
   "/",
   protect,
   getStudents,
+);
+
+/*
+ * Get Students By Teacher Assignment
+ *
+ * GET /api/students/teacher-assignment
+ *
+ * TEACHER ONLY.
+ *
+ * Required query parameters:
+ *
+ *   ?assignmentType=CLASS_TEACHER
+ *   &sectionId=<sectionId>
+ *   &academicYearId=<academicYearId>
+ *
+ * OR
+ *
+ *   ?assignmentType=SUBJECT_TEACHER
+ *   &sectionId=<sectionId>
+ *   &academicYearId=<academicYearId>
+ *
+ * Authorization:
+ *
+ * CLASS_TEACHER:
+ *   Can retrieve students belonging to their assigned
+ *   class and section.
+ *
+ * SUBJECT_TEACHER:
+ *   Can retrieve students belonging to sections where
+ *   they have an active subject assignment.
+ *
+ * The controller validates the teacher's assignment
+ * before retrieving students.
+ */
+router.get(
+  "/teacher-assignment",
+  protect,
+  resolveSchool,
+  getStudentsByTeacherAssignment
 );
 
 /*

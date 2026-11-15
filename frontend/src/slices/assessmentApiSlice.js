@@ -354,7 +354,7 @@ getStudentEligibleAssessments: builder.query({
       */
       getMyAssessments: builder.query({
         query: () => ({
-          url: `${ASSESSMENT_URL}/my-assessments`,
+          url: `${ASSESSMENT_URL}/my`,
         }),
 
         providesTags: (result) =>

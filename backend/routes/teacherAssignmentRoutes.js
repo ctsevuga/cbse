@@ -21,10 +21,24 @@ import resolveSchool from "../middleware/resolveSchool.js";
 
 const router = express.Router();
 
-// All routes in this router are school-specific.
-// Mount this router at /api/:slug/teacher-assignments.
+// ======================================================
+// MY TEACHER ASSIGNMENTS
+// GET /api/teacher-assignments/:slug/my
+// ======================================================
 
-// Create and list teacher assignments
+router.get(
+  "/:slug/my",
+  protect,
+  resolveSchool,
+  getMyTeacherAssignments,
+);
+
+// ======================================================
+// CREATE AND LIST TEACHER ASSIGNMENTS
+// POST /api/teacher-assignments/:slug
+// GET  /api/teacher-assignments/:slug
+// ======================================================
+
 router
   .route("/:slug")
   .post(
@@ -40,35 +54,41 @@ router
     getTeacherAssignments,
   );
 
-// Get the logged-in teacher's assignments
-router.get(
-  "/my",
-  protect,
-  resolveSchool,
-  getMyTeacherAssignments,
-);
+// ======================================================
+// GET ASSIGNMENTS BY TEACHER
+// GET /api/teacher-assignments/:slug/teacher/:teacherId
+// ======================================================
 
-// Get assignments by teacher
 router.get(
-  "/teacher/:teacherId",
+  "/:slug/teacher/:teacherId",
   protect,
   adminOrSuperAdmin,
   resolveSchool,
   getAssignmentsByTeacher,
 );
 
-// Get assignments by section
+// ======================================================
+// GET ASSIGNMENTS BY SECTION
+// GET /api/teacher-assignments/:slug/section/:sectionId
+// ======================================================
+
 router.get(
-  "/section/:sectionId",
+  "/:slug/section/:sectionId",
   protect,
   adminOrSuperAdmin,
   resolveSchool,
   getAssignmentsBySection,
 );
 
-// Get, update, or delete a specific assignment
+// ======================================================
+// GET, UPDATE, OR DELETE A SPECIFIC ASSIGNMENT
+// GET    /api/teacher-assignments/:slug/:id
+// PUT    /api/teacher-assignments/:slug/:id
+// DELETE /api/teacher-assignments/:slug/:id
+// ======================================================
+
 router
-  .route("/:id")
+  .route("/:slug/:id")
   .get(
     protect,
     resolveSchool,
@@ -87,9 +107,13 @@ router
     deleteTeacherAssignment,
   );
 
-// Update assignment active status
+// ======================================================
+// UPDATE ASSIGNMENT ACTIVE STATUS
+// PATCH /api/teacher-assignments/:slug/:id/status
+// ======================================================
+
 router.patch(
-  "/:id/status",
+  "/:slug/:id/status",
   protect,
   adminOrSuperAdmin,
   resolveSchool,

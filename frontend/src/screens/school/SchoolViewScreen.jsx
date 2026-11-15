@@ -1,4 +1,6 @@
 import React from "react";
+import { useParams } from "react-router-dom";
+
 import {
   Building2,
   MapPin,
@@ -18,15 +20,21 @@ import {
 
 import { useGetSchoolDetailsQuery } from "../../slices/schoolApiSlice";
 
-
 const SchoolDetailsScreen = () => {
+  // Read the school ID from /admin/school/:id
+  const { id } = useParams();
+
   const {
     data: school,
     isLoading,
     isError,
     error,
     refetch,
-  } = useGetSchoolDetailsQuery();
+  } = useGetSchoolDetailsQuery(id, {
+    skip: !id,
+  });
+
+  
 
 
   const copyToClipboard = async (value) => {

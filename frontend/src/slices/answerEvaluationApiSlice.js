@@ -67,6 +67,98 @@ export const answerEvaluationApiSlice = apiSlice.injectEndpoints({
       keepUnusedDataFor: 5,
     }),
 
+    getAttemptsForEvaluation: builder.query({
+  query: ({ assessment, student }) => ({
+    url: `${ANSWER_EVALUATION_URL}/attempts`,
+    params: {
+      assessment,
+      student,
+    },
+  }),
+
+  providesTags: (result, error, { assessment, student }) => [
+    {
+      type: "AnswerEvaluation",
+      id: `ATTEMPTS-${assessment}-${student}`,
+    },
+  ],
+
+  keepUnusedDataFor: 5,
+}),
+getAssessmentAttemptsForTeacher: builder.query({
+  query: (assessmentId) => ({
+    url: `${ANSWER_EVALUATION_URL}/assessment-attempts`,
+    params: {
+      assessment: assessmentId,
+    },
+  }),
+
+  providesTags: (result, error, assessmentId) => [
+    {
+      type: "AnswerEvaluation",
+      id: `ASSESSMENT-ATTEMPTS-${assessmentId}`,
+    },
+    {
+      type: "StudentAttempt",
+      id: `ASSESSMENT-${assessmentId}`,
+    },
+  ],
+
+  keepUnusedDataFor: 5,
+}),
+getAttemptsForReview: builder.query({
+  query: ({ student, assessment }) => ({
+    url: `${ANSWER_EVALUATION_URL}/attempts/review`,
+    params: {
+      student,
+      assessment,
+    },
+  }),
+
+  providesTags: (result, error, { student, assessment }) => [
+    {
+      type: "AnswerEvaluation",
+      id: `ATTEMPTS-REVIEW-${assessment}-${student}`,
+    },
+  ],
+
+  keepUnusedDataFor: 5,
+}),
+completeAttemptEvaluation: builder.mutation({
+  query: (attemptId) => ({
+    url: `${ANSWER_EVALUATION_URL}/attempt/${attemptId}/complete`,
+    method: "POST",
+  }),
+
+  invalidatesTags: (result, error, attemptId) =>
+    error
+      ? []
+      : [
+          {
+            type: "AnswerEvaluation",
+            id: "LIST",
+          },
+          {
+            type: "AnswerEvaluation",
+            id: "MY",
+          },
+          {
+            type: "AnswerEvaluation",
+            id: "PENDING",
+          },
+          {
+            type: "AnswerEvaluation",
+            id: `ATTEMPT-${attemptId}`,
+          },
+          {
+            type: "AnswerEvaluation",
+            id: `ATTEMPT-RESULT-${attemptId}`,
+          },
+          "AnswerEvaluation",
+          "StudentAttempt",
+        ],
+}),
+
     getMyAnswerEvaluations: builder.query({
       query: (params = {}) => ({
         url: `${ANSWER_EVALUATION_URL}/my`,
@@ -263,6 +355,111 @@ export const answerEvaluationApiSlice = apiSlice.injectEndpoints({
         "AnswerEvaluation",
       ],
     }),
+reviseAttemptEvaluation: builder.mutation({
+  query: ({ attemptId, corrections }) => ({
+    url: `${ANSWER_EVALUATION_URL}/attempts/${attemptId}/revise`,
+    method: "PUT",
+    body: {
+      corrections,
+    },
+  }),
+
+  invalidatesTags: (result, error, { attemptId }) =>
+    error
+      ? []
+      : [
+          {
+            type: "AnswerEvaluation",
+            id: "LIST",
+          },
+          {
+            type: "AnswerEvaluation",
+            id: "MY",
+          },
+          {
+            type: "AnswerEvaluation",
+            id: `ATTEMPT-${attemptId}`,
+          },
+          {
+            type: "AnswerEvaluation",
+            id: `ATTEMPT-RESULT-${attemptId}`,
+          },
+          {
+            type: "AnswerEvaluation",
+            id: `ATTEMPT-REVIEW-${attemptId}`,
+          },
+          "AnswerEvaluation",
+          "StudentAttempt",
+        ],
+}),
+
+getAttemptsForReviewByAssessment: builder.query({
+  query: ({ assessmentId }) => ({
+    url: `${ANSWER_EVALUATION_URL}/attempts/review/by-assessment`,
+    params: { assessment: assessmentId, },
+  }),
+
+  transformResponse: (response) => {
+    return Array.isArray(response)
+      ? response
+      : response?.data?.attempts ||
+          response?.data ||
+          response?.attempts ||
+          [];
+  },
+
+  providesTags: (result, error, { assessment }) => [
+    {
+      type: "AnswerEvaluation",
+      id: `ATTEMPTS-REVIEW-ASSESSMENT-${assessment}`,
+    },
+    ...(result || []).map((attempt) => ({
+      type: "StudentAttempt",
+      id: attempt._id,
+    })),
+  ],
+
+  keepUnusedDataFor: 5,
+}),
+
+    saveAnswerEvaluation: builder.mutation({
+  query: ({ studentAnswerId, marksAwarded, feedback }) => ({
+    url: `${ANSWER_EVALUATION_URL}/save`,
+    method: "POST",
+    body: {
+      studentAnswerId,
+      marksAwarded,
+      feedback: feedback?.trim() ?? "",
+    },
+  }),
+
+  invalidatesTags: (result, error, { studentAnswerId }) =>
+    error
+      ? []
+      : [
+          {
+            type: "AnswerEvaluation",
+            id: result?.data?._id ?? result?._id,
+          },
+          {
+            type: "AnswerEvaluation",
+            id: "LIST",
+          },
+          {
+            type: "AnswerEvaluation",
+            id: "MY",
+          },
+          {
+            type: "AnswerEvaluation",
+            id: "PENDING",
+          },
+          {
+            type: "AnswerEvaluation",
+            id: `STUDENT-ANSWER-${studentAnswerId}`,
+          },
+          "AnswerEvaluation",
+        ],
+}),
 
     updateAnswerEvaluationStatus: builder.mutation({
       query: ({ evaluationId, evaluationStatus }) => ({
@@ -324,6 +521,9 @@ const getId = (value) => {
 
 export const {
   useCreateAnswerEvaluationMutation,
+  useSaveAnswerEvaluationMutation,
+  useCompleteAttemptEvaluationMutation,
+  useReviseAttemptEvaluationMutation,
   useGetAnswerEvaluationsQuery,
   useGetMyAnswerEvaluationsQuery,
   useGetPendingAnswerEvaluationsQuery,
@@ -331,6 +531,10 @@ export const {
   useGetEvaluationByStudentAnswerQuery,
   useGetEvaluationsByAttemptQuery,
   useGetEvaluationsByStudentQuery,
+  useGetAttemptsForEvaluationQuery,
+  useGetAssessmentAttemptsForTeacherQuery,
+  useGetAttemptsForReviewByAssessmentQuery,
+  useGetAttemptsForReviewQuery,
   useUpdateAnswerEvaluationMutation,
   useUpdateAnswerEvaluationStatusMutation,
 } = answerEvaluationApiSlice;

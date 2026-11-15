@@ -6,7 +6,8 @@ import School from "../models/schoolModel.js";
 import AcademicYear from "../models/academicYearModel.js";
 import Class from "../models/classModel.js";
 import Section from "../models/sectionModel.js";
-import Subject from "../models/subjectModel.js";
+import Teacher from "../models/teacherModel.js";
+
 
 const validateSchool = async (schoolId) => {
   if (!schoolId) {
@@ -26,42 +27,26 @@ const validateSchool = async (schoolId) => {
   return school;
 };
 
+// teacherUserId is the User collection's ObjectId.
+// Resolve the corresponding Teacher document before validating.
 const validateTeacher = async (
-  teacherId,
+  teacherUserId,
   schoolId,
 ) => {
-  if (!teacherId) {
+  if (!teacherUserId) {
     throw new Error("Teacher is required");
   }
 
-  const teacher = await User.findById(
-    teacherId,
-  ).select(
-    "_id name role school isActive",
-  );
+  const teacher = await Teacher.findOne({
+    user: teacherUserId,
+    school: schoolId,
+    isActive: true,
+  });
 
   if (!teacher) {
-    throw new Error("Teacher not found");
-  }
-
-  if (teacher.role !== "TEACHER") {
     throw new Error(
-      "Selected user is not a teacher",
+      "Active teacher profile not found for the selected user in this school",
     );
-  }
-
-  if (
-    !teacher.school ||
-    String(teacher.school) !==
-      String(schoolId)
-  ) {
-    throw new Error(
-      "Teacher does not belong to the school",
-    );
-  }
-
-  if (!teacher.isActive) {
-    throw new Error("Teacher is inactive");
   }
 
   return teacher;
@@ -76,19 +61,14 @@ const validateAcademicYear = async (
   }
 
   const academicYear =
-    await AcademicYear.findById(
-      academicYearId,
-    );
+    await AcademicYear.findById(academicYearId);
 
   if (!academicYear) {
-    throw new Error(
-      "Academic year not found",
-    );
+    throw new Error("Academic year not found");
   }
 
   if (
-    String(academicYear.school) !==
-    String(schoolId)
+    String(academicYear.school) !== String(schoolId)
   ) {
     throw new Error(
       "Academic year does not belong to the school",
@@ -96,9 +76,7 @@ const validateAcademicYear = async (
   }
 
   if (!academicYear.isActive) {
-    throw new Error(
-      "Academic year is inactive",
-    );
+    throw new Error("Academic year is inactive");
   }
 
   return academicYear;
@@ -112,16 +90,14 @@ const validateClass = async (
     throw new Error("Class is required");
   }
 
-  const classData =
-    await Class.findById(classId);
+  const classData = await Class.findById(classId);
 
   if (!classData) {
     throw new Error("Class not found");
   }
 
   if (
-    String(classData.school) !==
-    String(schoolId)
+    String(classData.school) !== String(schoolId)
   ) {
     throw new Error(
       "Class does not belong to the school",
@@ -145,16 +121,14 @@ const validateSection = async ({
     throw new Error("Section is required");
   }
 
-  const section =
-    await Section.findById(sectionId);
+  const section = await Section.findById(sectionId);
 
   if (!section) {
     throw new Error("Section not found");
   }
 
   if (
-    String(section.school) !==
-    String(schoolId)
+    String(section.school) !== String(schoolId)
   ) {
     throw new Error(
       "Section does not belong to the school",
@@ -171,8 +145,7 @@ const validateSection = async ({
   }
 
   if (
-    String(section.class) !==
-    String(classId)
+    String(section.class) !== String(classId)
   ) {
     throw new Error(
       "Section does not belong to the selected class",
@@ -186,121 +159,75 @@ const validateSection = async ({
   return section;
 };
 
-const validateSubject = async (
-  subjectId,
-  schoolId,
-) => {
-  if (!subjectId) {
-    throw new Error(
-      "Subject is required for a subject teacher assignment",
-    );
-  }
-
-  const subject =
-    await Subject.findById(subjectId);
-
-  if (!subject) {
-    throw new Error("Subject not found");
-  }
-
+const validateAssignmentType = (assignmentType) => {
   if (
-    String(subject.school) !==
-    String(schoolId)
+    !["CLASS_TEACHER", "SUBJECT_TEACHER"].includes(
+      assignmentType,
+    )
   ) {
-    throw new Error(
-      "Subject does not belong to the school",
-    );
-  }
-
-  if (!subject.isActive) {
-    throw new Error("Subject is inactive");
-  }
-
-  return subject;
-};
-
-const validateAssignmentType = (
-  assignmentType,
-) => {
-  if (
-    ![
-      "CLASS_TEACHER",
-      "SUBJECT_TEACHER",
-    ].includes(assignmentType)
-  ) {
-    throw new Error(
-      "Invalid assignment type",
-    );
+    throw new Error("Invalid assignment type");
   }
 };
 
 const validateAssignmentData = async ({
   schoolId,
   academicYearId,
-  teacherId,
+  teacherUserId,
   classId,
   sectionId,
-  subjectId,
   assignmentType,
 }) => {
-  validateAssignmentType(
-    assignmentType,
-  );
+  // Validate the school first.
+  const school = await validateSchool(schoolId);
 
-  await validateSchool(schoolId);
+  // Validate the assignment type.
+  validateAssignmentType(assignmentType);
 
-  await validateAcademicYear(
+  // Await every asynchronous validation.
+  const academicYear = await validateAcademicYear(
     academicYearId,
-    schoolId,
+    school._id,
   );
 
-  await validateTeacher(
-    teacherId,
-    schoolId,
+  // Resolve User ObjectId -> Teacher document.
+  const teacher = await validateTeacher(
+    teacherUserId,
+    school._id,
   );
 
-  await validateClass(
+  const classData = await validateClass(
     classId,
-    schoolId,
+    school._id,
   );
 
-  await validateSection({
+  const section = await validateSection({
     sectionId,
-    schoolId,
-    academicYearId,
-    classId,
+    schoolId: school._id,
+    academicYearId: academicYear._id,
+    classId: classData._id,
   });
 
-  if (
-    assignmentType ===
-    "CLASS_TEACHER"
-  ) {
-    if (subjectId) {
-      throw new Error(
-        "Subject should not be specified for a class teacher assignment",
-      );
-    }
-  }
-
-  if (
-    assignmentType ===
-    "SUBJECT_TEACHER"
-  ) {
-    await validateSubject(
-      subjectId,
-      schoolId,
-    );
-  }
+  // Subject ownership validation intentionally omitted.
+  return {
+    school,
+    academicYear,
+    teacher,
+    class: classData,
+    section,
+  };
 };
 
-export const createTeacherAssignment =
-  asyncHandler(async (req, res) => {
+
+
+
+export const createTeacherAssignment = asyncHandler(
+  async (req, res) => {
     const {
       academicYear,
-      teacher,
+      teacher: teacherUserId,
       class: classId,
-      section,
-      subject,
+      section: sectionId,
+      subject: subjectId,
       assignmentType,
     } = req.body;
 
@@ -308,32 +235,58 @@ export const createTeacherAssignment =
 
     if (!schoolId) {
       res.status(403);
-      throw new Error(
-        "School could not be determined",
-      );
+      throw new Error("School could not be determined");
     }
 
-    await validateAssignmentData({
+    // 1. Validate input and resolve the Teacher profile.
+    const validated = await validateAssignmentData({
       schoolId,
       academicYearId: academicYear,
-      teacherId: teacher,
+      teacherUserId,
       classId,
-      sectionId: section,
-      subjectId: subject,
+      sectionId,
       assignmentType,
     });
 
-    if (
-      assignmentType ===
-      "CLASS_TEACHER"
-    ) {
+    const {
+      school,
+      academicYear: validatedAcademicYear,
+      teacher,
+      class: validatedClass,
+      section,
+    } = validated;
+
+    // Use canonical document IDs for database operations.
+    const assignmentData = {
+      school: school._id,
+      academicYear: validatedAcademicYear._id,
+      teacher: teacher._id,
+      class: validatedClass._id,
+      section: section._id,
+      assignmentType,
+      isActive: true,
+    };
+
+    if (assignmentType === "SUBJECT_TEACHER") {
+      if (!subjectId) {
+        res.status(400);
+        throw new Error(
+          "Subject is required for a subject teacher assignment",
+        );
+      }
+
+      // Subject ownership validation is intentionally omitted.
+      assignmentData.subject = subjectId;
+    }
+
+    // 2. Only one active class teacher per section/year.
+    if (assignmentType === "CLASS_TEACHER") {
       const existingClassTeacher =
         await TeacherAssignment.findOne({
-          school: schoolId,
-          academicYear,
-          section,
-          assignmentType:
-            "CLASS_TEACHER",
+          school: school._id,
+          academicYear: validatedAcademicYear._id,
+          section: section._id,
+          assignmentType: "CLASS_TEACHER",
           isActive: true,
         });
 
@@ -345,28 +298,23 @@ export const createTeacherAssignment =
       }
     }
 
+    // 3. Prevent duplicate active assignments.
     const duplicateQuery = {
-      school: schoolId,
-      academicYear,
-      teacher,
-      class: classId,
-      section,
+      school: school._id,
+      academicYear: validatedAcademicYear._id,
+      teacher: teacher._id,
+      class: validatedClass._id,
+      section: section._id,
       assignmentType,
       isActive: true,
     };
 
-    if (
-      assignmentType ===
-      "SUBJECT_TEACHER"
-    ) {
-      duplicateQuery.subject =
-        subject;
+    if (assignmentType === "SUBJECT_TEACHER") {
+      duplicateQuery.subject = subjectId;
     }
 
     const existingAssignment =
-      await TeacherAssignment.findOne(
-        duplicateQuery,
-      );
+      await TeacherAssignment.findOne(duplicateQuery);
 
     if (existingAssignment) {
       res.status(400);
@@ -375,61 +323,41 @@ export const createTeacherAssignment =
       );
     }
 
+    // 4. Save the Teacher collection's ObjectId, not User._id.
     const assignment =
-      await TeacherAssignment.create({
-        school: schoolId,
-        academicYear,
-        teacher,
-        class: classId,
-        section,
-        subject:
-          assignmentType ===
-          "SUBJECT_TEACHER"
-            ? subject
-            : undefined,
-        assignmentType,
-        isActive: true,
-      });
+      await TeacherAssignment.create(assignmentData);
 
+    // 5. Return the populated assignment.
     const populatedAssignment =
-      await TeacherAssignment.findById(
-        assignment._id,
-      )
-        .populate(
-          "school",
-          "name code",
-        )
+      await TeacherAssignment.findById(assignment._id)
+        .populate("school", "name code")
         .populate(
           "academicYear",
           "name startDate endDate",
         )
-        .populate(
-          "teacher",
-          "name email phone role",
-        )
-        .populate(
-          "class",
-          "name code",
-        )
-        .populate(
-          "section",
-          "name",
-        )
-        .populate(
-          "subject",
-          "name code",
-        );
+        .populate({
+          path: "teacher",
+          populate: {
+            path: "user",
+            select: "name email phone role",
+          },
+        })
+        .populate("class", "name code")
+        .populate("section", "name")
+        .populate("subject", "name code");
 
-    res
-      .status(201)
-      .json(populatedAssignment);
-  });
+    return res.status(201).json(populatedAssignment);
+  },
+);
 
-export const getTeacherAssignments =
-  asyncHandler(async (req, res) => {
+
+
+
+export const getTeacherAssignments = asyncHandler(
+  async (req, res) => {
     const {
       academicYear,
-      teacher,
+      teacher: teacherId,
       class: classId,
       section,
       subject,
@@ -438,18 +366,10 @@ export const getTeacherAssignments =
     } = req.query;
 
     const schoolId = req.schoolId;
-    console.log("Teacher assignments request:", {
-      schoolId,
-      schoolIdType: typeof schoolId,
-      query: req.query,
-      user: req.user?._id,
-    });
 
     if (!schoolId) {
       res.status(403);
-      throw new Error(
-        "School could not be determined",
-      );
+      throw new Error("School could not be determined");
     }
 
     await validateSchool(schoolId);
@@ -459,12 +379,11 @@ export const getTeacherAssignments =
     };
 
     if (academicYear) {
-      filter.academicYear =
-        academicYear;
+      filter.academicYear = academicYear;
     }
 
-    if (teacher) {
-      filter.teacher = teacher;
+    if (teacherId) {
+      filter.teacher = teacherId;
     }
 
     if (classId) {
@@ -480,52 +399,41 @@ export const getTeacherAssignments =
     }
 
     if (assignmentType) {
-      filter.assignmentType =
-        assignmentType;
+      filter.assignmentType = assignmentType;
     }
 
     if (isActive !== undefined) {
-      filter.isActive =
-        isActive === "true";
+      filter.isActive = isActive === "true";
     }
 
-    const assignments =
-      await TeacherAssignment.find(
-        filter,
-      )
-        .populate(
-          "school",
-          "name code",
-        )
-        .populate(
-          "academicYear",
-          "name startDate endDate",
-        )
-        .populate(
-          "teacher",
-          "name email phone role",
-        )
-        .populate(
-          "class",
-          "name code",
-        )
-        .populate(
-          "section",
-          "name",
-        )
-        .populate(
-          "subject",
-          "name code",
-        )
-        .sort({
-          academicYear: 1,
-          class: 1,
-          section: 1,
-          assignmentType: 1,
-        });
-
+    const assignments = await TeacherAssignment.find(filter)
+      .populate("school", "name code")
+      .populate("academicYear", "name startDate endDate")
+      .populate({
+        path: "teacher",
+        select: "user school employeeCode qualification isActive",
+        populate: {
+          path: "user",
+          select: "name email phone role",
+        },
+      })
+      .populate("class", "name code")
+      .populate("section", "name")
+      .populate("subject", "name code")
+      .sort({
+        academicYear: 1,
+        class: 1,
+        section: 1,
+        assignmentType: 1,
+      });
+console.log(
+  "Teacher assignment data:",
+  JSON.stringify(assignments, null, 2),
+);
     res.json(assignments);
-  });
+  },
+);
+
 
 export const getTeacherAssignmentById =
   asyncHandler(async (req, res) => {
@@ -715,52 +623,54 @@ export const getAssignmentsBySection =
     res.json(assignments);
   });
 
-export const getMyTeacherAssignments =
-  asyncHandler(async (req, res) => {
+export const getMyTeacherAssignments = asyncHandler(
+  async (req, res) => {
     if (req.user.role !== "TEACHER") {
       res.status(403);
       throw new Error(
-        "Only teachers can access their assignments",
+        "Only teachers can access their assignments"
       );
     }
 
     if (!req.schoolId) {
       res.status(403);
       throw new Error(
-        "Teacher does not belong to a school",
+        "Teacher does not belong to a school"
       );
     }
 
-    const assignments =
-      await TeacherAssignment.find({
-        school: req.schoolId,
-        teacher: req.user._id,
-        isActive: true,
-      })
-        .populate(
-          "academicYear",
-          "name startDate endDate",
-        )
-        .populate(
-          "class",
-          "name code",
-        )
-        .populate(
-          "section",
-          "name",
-        )
-        .populate(
-          "subject",
-          "name code",
-        )
-        .sort({
-          academicYear: 1,
-          class: 1,
-          section: 1,
-        });
+    // Find the teacher using the logged-in user's ObjectId
+    const teacher = await Teacher.findOne({
+      user: req.user._id,
+      school: req.schoolId,
+      isActive: true,
+    });
+
+    if (!teacher) {
+      res.status(404);
+      throw new Error("Teacher profile not found");
+    }
+
+    // Use the Teacher document's ObjectId
+    const assignments = await TeacherAssignment.find({
+      school: req.schoolId,
+      teacher: teacher._id,
+      isActive: true,
+    })
+      .populate("academicYear", "name startDate endDate")
+      .populate("class", "name code")
+      .populate("section", "name")
+      .populate("subject", "name code")
+      .sort({
+        academicYear: 1,
+        class: 1,
+        section: 1,
+      });
 
     res.json(assignments);
-  });
+  }
+);
+
 
 export const updateTeacherAssignment =
   asyncHandler(async (req, res) => {
@@ -776,10 +686,11 @@ export const updateTeacherAssignment =
       );
     }
 
+    const schoolId = req.schoolId;
+
     if (
-      !req.schoolId ||
-      String(assignment.school) !==
-        String(req.schoolId)
+      !schoolId ||
+      String(assignment.school) !== String(schoolId)
     ) {
       res.status(403);
       throw new Error(
@@ -789,22 +700,20 @@ export const updateTeacherAssignment =
 
     const {
       academicYear,
-      teacher,
+      teacher: teacherUserId,
       class: classId,
       section,
       subject,
       assignmentType,
     } = req.body;
 
-    const schoolId =
-      req.schoolId;
-
     const academicYearId =
       academicYear ||
       assignment.academicYear.toString();
 
-    const teacherId =
-      teacher ||
+    // Keep the User ObjectId, not the Teacher document ID.
+    const selectedTeacherUserId =
+      teacherUserId ||
       assignment.teacher.toString();
 
     const selectedClass =
@@ -821,10 +730,7 @@ export const updateTeacherAssignment =
 
     let selectedSubject;
 
-    if (
-      selectedType ===
-      "SUBJECT_TEACHER"
-    ) {
+    if (selectedType === "SUBJECT_TEACHER") {
       selectedSubject =
         subject !== undefined
           ? subject
@@ -838,33 +744,25 @@ export const updateTeacherAssignment =
       }
     }
 
+    // Validate the selected teacher User ID and other fields.
     await validateAssignmentData({
       schoolId,
       academicYearId,
-      teacherId,
+      teacherUserId: selectedTeacherUserId,
       classId: selectedClass,
       sectionId: selectedSection,
-      subjectId: selectedSubject,
-      assignmentType:
-        selectedType,
+      assignmentType: selectedType,
     });
 
-    if (
-      selectedType ===
-      "CLASS_TEACHER"
-    ) {
+    // Only one active class teacher per section/year.
+    if (selectedType === "CLASS_TEACHER") {
       const existingClassTeacher =
         await TeacherAssignment.findOne({
-          _id: {
-            $ne: assignment._id,
-          },
+          _id: { $ne: assignment._id },
           school: schoolId,
-          academicYear:
-            academicYearId,
-          section:
-            selectedSection,
-          assignmentType:
-            "CLASS_TEACHER",
+          academicYear: academicYearId,
+          section: selectedSection,
+          assignmentType: "CLASS_TEACHER",
           isActive: true,
         });
 
@@ -876,27 +774,20 @@ export const updateTeacherAssignment =
       }
     }
 
+    // Check duplicates using the User ObjectId.
     const duplicateQuery = {
-      _id: {
-        $ne: assignment._id,
-      },
+      _id: { $ne: assignment._id },
       school: schoolId,
-      academicYear:
-        academicYearId,
-      teacher: teacherId,
+      academicYear: academicYearId,
+      teacher: selectedTeacherUserId,
       class: selectedClass,
       section: selectedSection,
-      assignmentType:
-        selectedType,
+      assignmentType: selectedType,
       isActive: true,
     };
 
-    if (
-      selectedType ===
-      "SUBJECT_TEACHER"
-    ) {
-      duplicateQuery.subject =
-        selectedSubject;
+    if (selectedType === "SUBJECT_TEACHER") {
+      duplicateQuery.subject = selectedSubject;
     }
 
     const duplicate =
@@ -911,24 +802,14 @@ export const updateTeacherAssignment =
       );
     }
 
-    assignment.academicYear =
-      academicYearId;
-
-    assignment.teacher =
-      teacherId;
-
-    assignment.class =
-      selectedClass;
-
-    assignment.section =
-      selectedSection;
-
-    assignment.assignmentType =
-      selectedType;
-
+    // Save User ObjectId because schema ref is "User".
+    assignment.academicYear = academicYearId;
+    assignment.teacher = selectedTeacherUserId;
+    assignment.class = selectedClass;
+    assignment.section = selectedSection;
+    assignment.assignmentType = selectedType;
     assignment.subject =
-      selectedType ===
-      "SUBJECT_TEACHER"
+      selectedType === "SUBJECT_TEACHER"
         ? selectedSubject
         : undefined;
 
@@ -939,10 +820,7 @@ export const updateTeacherAssignment =
       await TeacherAssignment.findById(
         updatedAssignment._id,
       )
-        .populate(
-          "school",
-          "name code",
-        )
+        .populate("school", "name code")
         .populate(
           "academicYear",
           "name startDate endDate",
@@ -951,21 +829,13 @@ export const updateTeacherAssignment =
           "teacher",
           "name email phone role",
         )
-        .populate(
-          "class",
-          "name code",
-        )
-        .populate(
-          "section",
-          "name",
-        )
-        .populate(
-          "subject",
-          "name code",
-        );
+        .populate("class", "name code")
+        .populate("section", "name")
+        .populate("subject", "name code");
 
     res.json(populatedAssignment);
   });
+
 
 export const updateTeacherAssignmentStatus =
   asyncHandler(async (req, res) => {

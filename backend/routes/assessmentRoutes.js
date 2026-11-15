@@ -60,7 +60,7 @@ router.get(
   getStudentEligibleAssessments,
 );
 router.get(
-  "/my-assessments",
+  "/my",
   protect,
   getMyAssessments,
 );

@@ -65,18 +65,7 @@ const ResultDetailRow = ({
         />
       </td>
 
-      {/* Question Type */}
-      <td className="px-4 py-4">
-        <QuestionTypeBadge type={questionType} />
-      </td>
-
-      {/* Maximum Marks */}
-      <td className="px-4 py-4 text-center">
-        <MarksDisplay
-          maximumMarks={maximumMarks}
-          obtainedMarks={null}
-        />
-      </td>
+      
 
       {/* Obtained Marks */}
       <td className="px-4 py-4 text-center">
@@ -164,7 +153,7 @@ const QuestionInfo = ({ question }) => {
  * names if necessary.
  */
 const StudentInfo = ({ result }) => {
-  if (!result) {
+  if (!result || typeof result === "string") {
     return (
       <span className="text-gray-400">
         —
@@ -172,38 +161,33 @@ const StudentInfo = ({ result }) => {
     );
   }
 
-  if (typeof result === "string") {
-    return (
-      <span
-        className="text-gray-700"
-        title={result}
-      >
-        {result}
-      </span>
-    );
-  }
+  const student = result.student || result.user;
 
-  const student =
-    result.student ||
-    result.user;
-
-  if (!student) {
+  if (!student || typeof student === "string") {
     return (
-      <span className="text-gray-700">
+      <span className="text-gray-400">
         —
       </span>
     );
   }
 
+  // Student.user may be a populated User document.
+  const user =
+    student.user && typeof student.user === "object"
+      ? student.user
+      : student;
+
   const studentName =
-    student.name ||
-    student.fullName ||
+    user.name ||
+    user.fullName ||
     [
-      student.firstName,
-      student.lastName,
+      user.firstName,
+      user.lastName,
     ]
       .filter(Boolean)
       .join(" ");
+
+  const email = user.email || student.email;
 
   return (
     <div>
@@ -211,9 +195,9 @@ const StudentInfo = ({ result }) => {
         {studentName || "Unknown student"}
       </p>
 
-      {student.email && (
+      {email && (
         <p className="mt-0.5 text-xs text-gray-500">
-          {student.email}
+          {email}
         </p>
       )}
     </div>

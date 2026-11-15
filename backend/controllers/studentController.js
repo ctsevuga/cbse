@@ -1,5 +1,5 @@
 import asyncHandler from "../middleware/asyncHandler.js";
-
+import mongoose from "mongoose";
 import Student from "../models/studentModel.js";
 import User from "../models/userModel.js";
 import School from "../models/schoolModel.js";
@@ -7,6 +7,8 @@ import AcademicYear from "../models/academicYearModel.js";
 import SubjectCombination from "../models/subjectCombinationModel.js";
 import Subject from "../models/subjectModel.js";
 import Stream from "../models/streamModel.js";
+import Teacher from "../models/teacherModel.js";
+import TeacherAssignment from "../models/teacherAssignmentModel.js";
 
 /**
  * Get school for the request.
@@ -516,6 +518,81 @@ const getStudents = asyncHandler(async (req, res) => {
   res.json(students);
 });
 
+
+
+const getStudentsByTeacherAssignment = asyncHandler(
+  async (req, res) => {
+    const { assignmentType, sectionId, academicYearId } = req.query;
+
+    // Validate request
+    if (
+      req.user.role !== "TEACHER" ||
+      !req.schoolId
+    ) {
+      res.status(403);
+      throw new Error("Access denied.");
+    }
+
+    if (
+      !["CLASS_TEACHER", "SUBJECT_TEACHER"].includes(
+        assignmentType
+      ) ||
+      !sectionId ||
+      !academicYearId ||
+      !mongoose.Types.ObjectId.isValid(sectionId) ||
+      !mongoose.Types.ObjectId.isValid(academicYearId)
+    ) {
+      res.status(400);
+      throw new Error("Invalid assignment type, section or academic year.");
+    }
+
+    // Find teacher profile
+    const teacher = await Teacher.findOne({
+      user: req.user._id,
+      school: req.schoolId,
+      isActive: true,
+    }).select("_id");
+
+    if (!teacher) {
+      res.status(404);
+      throw new Error("Teacher profile not found.");
+    }
+
+    // Validate teacher assignment
+    const assignment = await TeacherAssignment.findOne({
+      school: req.schoolId,
+      teacher: teacher._id,
+      assignmentType,
+      section: sectionId,
+      academicYear: academicYearId,
+      isActive: true,
+    }).select("class section academicYear");
+
+    if (!assignment) {
+      res.status(403);
+      throw new Error("You are not assigned to this section.");
+    }
+
+    // Get students
+    const students = await Student.find({
+      school: req.schoolId,
+      academicYear: assignment.academicYear,
+      class: assignment.class,
+      section: assignment.section,
+      isActive: true,
+    })
+      .populate("user", "name email phone")
+      .populate("class", "name code")
+      .populate("section", "name")
+      .sort({ admissionNumber: 1 })
+      .lean();
+
+    res.json(students);
+  }
+);
+
+
+
 /**
  * ======================================================
  * @desc    Get Student By Id
@@ -994,6 +1071,7 @@ const deleteStudent = asyncHandler(async (req, res) => {
 export {
   createStudent,
   getStudents,
+  getStudentsByTeacherAssignment,
   getStudentById,
   getStudentByUser,
   getMyStudentProfile,

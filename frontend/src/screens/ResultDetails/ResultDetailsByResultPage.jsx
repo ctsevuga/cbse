@@ -1,4 +1,7 @@
-import React, { useMemo, useState } from "react";
+
+import React, { useMemo, useState, useEffect } from "react";
+import { useSelector } from "react-redux";
+import { useParams } from "react-router-dom";
 
 import {
   useGetResultDetailsByResultQuery,
@@ -10,36 +13,16 @@ import Pagination from "./Common/Pagination";
 
 import ResultSummaryHeader from "./components/Result/ResultSummaryHeader";
 import ResultScoreSummary from "./components/Result/ResultScoreSummary";
-import ResultDetailFilters from "./ResultDetail/ResultDetailFilters";
 import ResultQuestionTable from "./components/Result/ResultQuestionTable";
-import SubjectResultSection from "./components/Result/SubjectResultSection";
 import EvaluationQueue from "./components/Evaluation/EvaluationQueue";
 import ResultDetailActions from "./ResultDetail/ResultDetailActions";
 
-/**
- * ResultDetailsByResultPage
- *
- * Displays all question-level result details belonging
- * to one Result.
- *
- * RTK endpoint used:
- * - useGetResultDetailsByResultQuery
- *
- * Expected query:
- * GET /result-details/result/:resultId
- *
- * The exact argument shape depends on resultDetailApiSlice.
- */
 
 const ResultDetailsByResultPage = ({
-  resultId,
-  result,
-
-  initialFilters = {},
+  resultId: providedResultId,
+  result: providedResult,
 
   showSummary = true,
-  showFilters = true,
-  showSubjectAnalysis = true,
   showEvaluationQueue = false,
   showActions = true,
 
@@ -47,15 +30,37 @@ const ResultDetailsByResultPage = ({
 
   className = "",
 }) => {
+  // --------------------------------------------------
+  // Route Parameters
+  // --------------------------------------------------
+
+  const params = useParams();
+
+  const { userInfo } = useSelector(
+    (state) => state.auth
+  );
+
+  const schoolSlug = userInfo?.school?.slug;
+
+  const resultId =
+    providedResultId ||
+    params.resultId ||
+    params.id;
+
+  // --------------------------------------------------
+  // State
+  // --------------------------------------------------
+
   const [page, setPage] = useState(1);
 
-  const [filters, setFilters] =
-    useState(initialFilters);
+  useEffect(() => {
+    setPage(1);
+  }, [resultId]);
 
-  /*
-   * Fetch all ResultDetails belonging to
-   * the selected Result.
-   */
+  // --------------------------------------------------
+  // Fetch Result Details
+  // --------------------------------------------------
+
   const {
     data,
     isLoading,
@@ -64,114 +69,83 @@ const ResultDetailsByResultPage = ({
     error,
     refetch,
   } = useGetResultDetailsByResultQuery(
-    resultId,
     {
-      skip: !resultId,
+      schoolSlug,
+      resultId,
     },
+    {
+      skip: !schoolSlug || !resultId,
+    }
   );
 
-  /*
-   * Normalize possible API response shapes.
-   *
-   * Supports:
-   * {
-   *   data: [],
-   *   pagination: {}
-   * }
-   *
-   * and:
-   * {
-   *   resultDetails: [],
-   *   total: 100
-   * }
-   *
-   * and a direct array.
-   */
-  const normalizedData = useMemo(() => {
-    return normalizeResponse(data);
-  }, [data]);
+  // --------------------------------------------------
+  // Normalize Response
+  // --------------------------------------------------
 
-  /*
-   * Apply client-side filters when the API
-   * response does not already perform filtering.
-   */
-  const filteredDetails = useMemo(() => {
-    return applyFilters(
-      normalizedData.items,
-      filters,
+  const normalizedData = useMemo(
+    () => normalizeResponse(data),
+    [data]
+  );
+
+  const result =
+    providedResult ||
+    normalizedData.result;
+
+  // --------------------------------------------------
+  // Pagination
+  // --------------------------------------------------
+
+  const paginatedDetails = useMemo(() => {
+    const start = (page - 1) * pageSize;
+
+    return normalizedData.items.slice(
+      start,
+      start + pageSize
     );
   }, [
     normalizedData.items,
-    filters,
-  ]);
-
-  /*
-   * Client-side pagination fallback.
-   *
-   * If your API already paginates the response,
-   * this still works when the returned data contains
-   * only the current page.
-   */
-  const paginatedDetails = useMemo(() => {
-    const start =
-      (page - 1) * pageSize;
-
-    return filteredDetails.slice(
-      start,
-      start + pageSize,
-    );
-  }, [
-    filteredDetails,
     page,
     pageSize,
   ]);
 
   const totalItems =
-    normalizedData.pagination
-      ?.total ??
-    filteredDetails.length;
+    normalizedData.pagination?.total ??
+    normalizedData.items.length;
 
   const totalPages =
-    normalizedData.pagination
-      ?.totalPages ??
+    normalizedData.pagination?.totalPages ??
     Math.max(
-      Math.ceil(
-        totalItems / pageSize,
-      ),
-      1,
+      Math.ceil(totalItems / pageSize),
+      1
     );
 
-  const handleFilterChange = (
-    nextFilters,
-  ) => {
-    setFilters(nextFilters);
-    setPage(1);
-  };
-
-  const handleClearFilters = () => {
-    setFilters({});
-    setPage(1);
-  };
-
-  const handlePageChange = (
-    nextPage,
-  ) => {
+  const handlePageChange = (nextPage) => {
     setPage(nextPage);
   };
 
-  /*
-   * Loading state.
-   */
+  // --------------------------------------------------
+  // Missing Result ID
+  // --------------------------------------------------
+
+  if (!resultId) {
+    return (
+      <div className={`w-full p-6 ${className}`}>
+        <EmptyState
+          variant="card"
+          title="Result not selected"
+          message="A valid result ID is required to view result details."
+        />
+      </div>
+    );
+  }
+
+  // --------------------------------------------------
+  // Loading
+  // --------------------------------------------------
+
   if (isLoading) {
     return (
-      <div
-        className={[
-          "w-full",
-          className,
-        ]
-          .filter(Boolean)
-          .join(" ")}
-      >
+      <div className={`w-full ${className}`}>
         <LoadingState
           variant="page"
           message="Loading result details..."
@@ -181,47 +155,17 @@ const ResultDetailsByResultPage = ({
     );
   }
 
-  /*
-   * Missing result ID.
-   */
-  if (!resultId) {
-    return (
-      <div
-        className={[
-          "w-full p-6",
-          className,
-        ]
-          .filter(Boolean)
-          .join(" ")}
-      >
-        <EmptyState
-          variant="card"
-          title="Result not selected"
-          message="A valid result is required to view result details."
-        />
-      </div>
-    );
-  }
+  // --------------------------------------------------
+  // Error
+  // --------------------------------------------------
 
-  /*
-   * API error.
-   */
   if (isError) {
     return (
-      <div
-        className={[
-          "w-full p-6",
-          className,
-        ]
-          .filter(Boolean)
-          .join(" ")}
-      >
+      <div className={`w-full p-6 ${className}`}>
         <EmptyState
           variant="card"
           title="Unable to load result details"
-          message={
-            getErrorMessage(error)
-          }
+          message={getErrorMessage(error)}
           actionLabel="Try Again"
           onAction={refetch}
         />
@@ -229,29 +173,19 @@ const ResultDetailsByResultPage = ({
     );
   }
 
-  /*
-   * Empty result.
-   */
+  // --------------------------------------------------
+  // Empty Result
+  // --------------------------------------------------
+
   if (
     !isFetching &&
-    normalizedData.items.length ===
-      0
+    normalizedData.items.length === 0
   ) {
     return (
-      <div
-        className={[
-          "w-full p-6",
-          className,
-        ]
-          .filter(Boolean)
-          .join(" ")}
-      >
+      <div className={`w-full p-6 ${className}`}>
         {showSummary && (
           <ResultSummaryHeader
-            result={
-              result ||
-              normalizedData.result
-            }
+            result={result}
           />
         )}
 
@@ -268,6 +202,10 @@ const ResultDetailsByResultPage = ({
     );
   }
 
+  // --------------------------------------------------
+  // Main Page
+  // --------------------------------------------------
+
   return (
     <div
       className={[
@@ -277,86 +215,47 @@ const ResultDetailsByResultPage = ({
         .filter(Boolean)
         .join(" ")}
     >
-      {/* ================================================================ */}
-      {/* Result Header                                                     */}
-      {/* ================================================================ */}
+      {/* Result Header */}
 
       {showSummary && (
         <ResultSummaryHeader
-          result={
-            result ||
-            normalizedData.result
-          }
-          resultDetails={
-            normalizedData.items
-          }
+          result={result}
+          resultDetails={normalizedData.items}
         />
       )}
 
-      {/* ================================================================ */}
-      {/* Actions                                                            */}
-      {/* ================================================================ */}
+      {/* Actions */}
 
       {showActions && (
         <ResultDetailActions
           resultId={resultId}
-          result={
-            result ||
-            normalizedData.result
-          }
+          result={result}
           onRefresh={refetch}
           isRefreshing={isFetching}
         />
       )}
 
-      {/* ================================================================ */}
-      {/* Score Summary                                                     */}
-      {/* ================================================================ */}
+      {/* Score Summary */}
 
       <ResultScoreSummary
-        result={
-          result ||
-          normalizedData.result
-        }
-        resultDetails={
-          normalizedData.items
-        }
+        result={result}
+        resultDetails={normalizedData.items}
       />
 
-      {/* ================================================================ */}
-      {/* Filters                                                            */}
-      {/* ================================================================ */}
-
-      {showFilters && (
-        <ResultDetailFilters
-          filters={filters}
-          resultDetails={
-            normalizedData.items
-          }
-          onChange={
-            handleFilterChange
-          }
-          onClear={
-            handleClearFilters
-          }
-        />
-      )}
-
-      {/* ================================================================ */}
-      {/* Question Results                                                  */}
-      {/* ================================================================ */}
+      {/* Question Results */}
 
       <section className="overflow-hidden rounded-xl border bg-white shadow-sm">
+
         <div className="border-b px-4 py-4 sm:px-6">
           <div className="flex items-center justify-between gap-3">
+
             <div>
               <h2 className="text-base font-semibold text-gray-900">
                 Question Results
               </h2>
 
               <p className="mt-1 text-xs text-gray-500">
-                Question-level performance for
-                this result.
+                Question-level performance for this result.
               </p>
             </div>
 
@@ -367,19 +266,15 @@ const ResultDetailsByResultPage = ({
                 size="sm"
               />
             )}
+
           </div>
         </div>
 
         {paginatedDetails.length > 0 ? (
           <>
             <ResultQuestionTable
-              resultDetails={
-                paginatedDetails
-              }
-              result={
-                result ||
-                normalizedData.result
-              }
+              resultDetails={paginatedDetails}
+              result={result}
               isLoading={isFetching}
             />
 
@@ -388,62 +283,39 @@ const ResultDetailsByResultPage = ({
               totalPages={totalPages}
               totalItems={totalItems}
               pageSize={pageSize}
-              onPageChange={
-                handlePageChange
-              }
+              onPageChange={handlePageChange}
             />
           </>
         ) : (
           <div className="p-6">
             <EmptyState
               variant="compact"
-              title="No matching questions"
-              message="Try changing or clearing your filters."
-              actionLabel="Clear Filters"
-              onAction={
-                handleClearFilters
-              }
+              title="No question details found"
+              message="There are no question details available for this result."
             />
           </div>
         )}
+
       </section>
 
-      {/* ================================================================ */}
-      {/* Subject Analysis                                                   */}
-      {/* ================================================================ */}
-
-      {showSubjectAnalysis && (
-        <SubjectResultSection
-          result={
-            result ||
-            normalizedData.result
-          }
-          resultDetails={
-            normalizedData.items
-          }
-        />
-      )}
-
-      {/* ================================================================ */}
-      {/* Evaluation Queue                                                   */}
-      {/* ================================================================ */}
+      {/* Evaluation Queue */}
 
       {showEvaluationQueue && (
         <EvaluationQueue
           resultId={resultId}
         />
       )}
+
     </div>
   );
 };
 
-/* -------------------------------------------------------------------------- */
-/* Response Normalization                                                     */
-/* -------------------------------------------------------------------------- */
 
-const normalizeResponse = (
-  response,
-) => {
+// ==================================================
+// Response Normalization
+// ==================================================
+
+const normalizeResponse = (response) => {
   if (!response) {
     return {
       items: [],
@@ -467,166 +339,31 @@ const normalizeResponse = (
     response.items ||
     [];
 
-  const pagination =
-    response.pagination ||
-    response.meta ||
-    null;
-
   return {
     items: Array.isArray(items)
       ? items
       : [],
+
     result:
-      response.result ||
+      response.result || null,
+
+    pagination:
+      response.pagination ||
+      response.meta ||
       null,
-    pagination,
   };
 };
 
-/* -------------------------------------------------------------------------- */
-/* Filters                                                                    */
-/* -------------------------------------------------------------------------- */
+// ==================================================
+// Error Helper
+// ==================================================
 
-const applyFilters = (
-  details,
-  filters,
-) => {
-  if (!Array.isArray(details)) {
-    return [];
-  }
-
-  return details.filter(
-    (detail) => {
-      /*
-       * Question type.
-       */
-      if (
-        filters.questionType &&
-        detail.questionType !==
-          filters.questionType
-      ) {
-        return false;
-      }
-
-      /*
-       * Evaluation status.
-       */
-      if (
-        filters.evaluationStatus &&
-        detail.evaluationStatus !==
-          filters.evaluationStatus
-      ) {
-        return false;
-      }
-
-      /*
-       * Subject.
-       */
-      if (
-        filters.subjectId &&
-        getId(detail.subject) !==
-          filters.subjectId
-      ) {
-        return false;
-      }
-
-      /*
-       * Chapter.
-       */
-      if (
-        filters.chapterId &&
-        getId(detail.chapter) !==
-          filters.chapterId
-      ) {
-        return false;
-      }
-
-      /*
-       * Topic.
-       */
-      if (
-        filters.topicId &&
-        getId(detail.topic) !==
-          filters.topicId
-      ) {
-        return false;
-      }
-
-      /*
-       * Assessment question.
-       */
-      if (
-        filters.assessmentQuestionId &&
-        getId(
-          detail.assessmentQuestion,
-        ) !==
-          filters.assessmentQuestionId
-      ) {
-        return false;
-      }
-
-      /*
-       * Question.
-       */
-      if (
-        filters.questionId &&
-        getId(detail.question) !==
-          filters.questionId
-      ) {
-        return false;
-      }
-
-      return true;
-    },
-  );
-};
-
-/* -------------------------------------------------------------------------- */
-/* ID Helper                                                                  */
-/* -------------------------------------------------------------------------- */
-
-const getId = (
-  value,
-) => {
-  if (!value) {
-    return null;
-  }
-
-  if (
-    typeof value === "string"
-  ) {
-    return value;
-  }
-
+const getErrorMessage = (error) => {
   return (
-    value._id ||
-    value.id ||
-    null
-  );
-};
-
-/* -------------------------------------------------------------------------- */
-/* Error Helper                                                               */
-/* -------------------------------------------------------------------------- */
-
-const getErrorMessage = (
-  error,
-) => {
-  if (!error) {
-    return "An unexpected error occurred while loading the result details.";
-  }
-
-  if (
-    typeof error === "string"
-  ) {
-    return error;
-  }
-
-  return (
-    error.data?.message ||
-    error.data?.error ||
-    error.error ||
-    error.message ||
+    error?.data?.message ||
+    error?.data?.error ||
+    error?.error ||
+    error?.message ||
     "An unexpected error occurred while loading the result details."
   );
 };

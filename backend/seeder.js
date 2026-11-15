@@ -1,347 +1,275 @@
-import dotenv from "dotenv";
 import mongoose from "mongoose";
+import dotenv from "dotenv";
+
 import connectDB from "./config/db.js";
 
-import ResultDetail from "./models/resultDetailModel.js";
-import Result from "./models/resultModel.js";
-import AssessmentQuestion from "./models/assessmentQuestionModel.js";
+import StudentAttempt from "./models/studentAttemptModel.js";
 import StudentAnswer from "./models/studentAnswerModel.js";
 import AnswerEvaluation from "./models/answerEvaluationModel.js";
+import Result from "./models/resultModel.js";
+import ResultDetail from "./models/resultDetailModel.js";
 
 dotenv.config();
 
-const RESULT_ID = "6ad1d0dc40728e00ce3fa6bd";
-const SUBJECT_ID = "6ac51a0dc2df4173eed59b95";
-const TEACHER_ID = "6ac5105d06dc3444c376a6c0";
+// ======================================
+// CONFIGURATION
+// ======================================
 
-// Assessment-question, original-question, chapter and topic mappings.
-const questionDetails = [
-  {
-    assessmentQuestion: "6acf736d049b8dc0606134d2",
-    question: "6acc4524bdca2c15216a59bd",
-    chapter: "6acb17457a5284edf75b74be",
-    topic: "6acb1745e9ebf7bdeadc1c52",
-  },
-  {
-    assessmentQuestion: "6acf736d049b8dc0606134d3",
-    question: "6acc4524bdca2c15216a59ab",
-    chapter: "6acb17457a5284edf75b74be",
-    topic: "6acb1745e9ebf7bdeadc1c50",
-  },
-  {
-    assessmentQuestion: "6acf736d049b8dc0606134d4",
-    question: "6acc4524bdca2c15216a59f0",
-    chapter: "6acb17457a5284edf75b74be",
-    topic: "6acb1745e9ebf7bdeadc1c4c",
-  },
-  {
-    assessmentQuestion: "6acf736d049b8dc0606134d5",
-    question: "6acc4524bdca2c15216a59a2",
-    chapter: "6acb17457a5284edf75b74be",
-    topic: "6acb1745e9ebf7bdeadc1c46",
-  },
-  {
-    assessmentQuestion: "6acf736d049b8dc0606134d6",
-    question: "6acc4524bdca2c15216a5997",
-    chapter: "6acb17457a5284edf75b74be",
-    topic: "6acb1745e9ebf7bdeadc1c3e",
-  },
-  {
-    assessmentQuestion: "6acf736d049b8dc0606134d7",
-    question: "6acc4524bdca2c15216a59ae",
-    chapter: "6acb17457a5284edf75b74be",
-    topic: "6acb1745e9ebf7bdeadc1c54",
-  },
-  {
-    assessmentQuestion: "6acf736d049b8dc0606134d8",
-    question: "6acc4524bdca2c15216a59d5",
-    chapter: "6acb17457a5284edf75b74be",
-    topic: "6acb1745e9ebf7bdeadc1c48",
-  },
-  {
-    assessmentQuestion: "6acf736d049b8dc0606134d9",
-    question: "6acc4524bdca2c15216a59f3",
-    chapter: "6acb17457a5284edf75b74be",
-    topic: "6acb1745e9ebf7bdeadc1c50",
-  },
-  {
-    assessmentQuestion: "6acf736d049b8dc0606134da",
-    question: "6acc4524bdca2c15216a59e1",
-    chapter: "6acb17457a5284edf75b74be",
-    topic: "6acb1745e9ebf7bdeadc1c50",
-  },
-  {
-    assessmentQuestion: "6acf736d049b8dc0606134db",
-    question: "6acc4524bdca2c15216a59db",
-    chapter: "6acb17457a5284edf75b74be",
-    topic: "6acb1745e9ebf7bdeadc1c58",
-  },
-];
+const ASSESSMENT_ID = "6aeffd0553baab74eb008972";
 
-const seedResultDetails = async () => {
+const STUDENT_ATTEMPT_ID = "6af053032dba6c79dce1f27e";
+
+const STUDENT_ID = "6ac634cf99aa5f50d90d9085";
+
+// Keep true for the first run.
+// Change to false after checking the preview.
+const DRY_RUN = true;
+
+// ======================================
+// DELETE INCORRECT ASSESSMENT ATTEMPT DATA
+// ======================================
+
+const deleteIncorrectAssessmentAttemptData = async () => {
   try {
     await connectDB();
 
-    console.log("Connected to database.");
-    console.log("Starting Result Details seeder...\n");
+    console.log("\n======================================");
+    console.log("ASSESSMENT ATTEMPT DATA DELETION");
+    console.log("======================================");
 
-    // Validate supplied ObjectIds.
-    const idsToValidate = [
-      RESULT_ID,
-      SUBJECT_ID,
-      TEACHER_ID,
-      ...questionDetails.flatMap((item) => [
-        item.assessmentQuestion,
-        item.question,
-        item.chapter,
-        item.topic,
-      ]),
-    ];
+    console.log("Assessment ID:", ASSESSMENT_ID);
+    console.log("Student Attempt ID:", STUDENT_ATTEMPT_ID);
+    console.log("Student ID:", STUDENT_ID);
 
-    const invalidIds = idsToValidate.filter(
-      (id) => !mongoose.isValidObjectId(id),
+    console.log(
+      "Mode:",
+      DRY_RUN
+        ? "DRY RUN - NO DATABASE UPDATE"
+        : "LIVE DELETE - DATABASE WILL BE MODIFIED",
     );
 
-    if (invalidIds.length > 0) {
+    // ======================================
+    // VALIDATE OBJECT IDS
+    // ======================================
+
+    const assessmentId = new mongoose.Types.ObjectId(ASSESSMENT_ID);
+
+    const studentAttemptId = new mongoose.Types.ObjectId(STUDENT_ATTEMPT_ID);
+
+    const studentId = new mongoose.Types.ObjectId(STUDENT_ID);
+
+    // ======================================
+    // STEP 1: VALIDATE STUDENT ATTEMPT
+    // ======================================
+
+    const studentAttempt = await StudentAttempt.findOne({
+      _id: studentAttemptId,
+      assessment: assessmentId,
+      student: studentId,
+    }).select("_id assessment student status");
+
+    if (!studentAttempt) {
       throw new Error(
-        `Invalid ObjectIds: ${invalidIds.join(", ")}`,
+        "StudentAttempt not found for the supplied Assessment ID, Student Attempt ID and Student ID. Deletion aborted.",
       );
     }
 
-    // Validate the parent result.
-    const result = await Result.findById(RESULT_ID);
+    console.log("\nStudent Attempt validated successfully.");
 
-    if (!result) {
-      throw new Error(`Result not found: ${RESULT_ID}`);
-    }
+    console.log("Attempt Status:", studentAttempt.status);
 
-    // Load assessment-question assignments and their maximum marks.
-    const assessmentQuestionIds = questionDetails.map(
-      (item) => item.assessmentQuestion,
-    );
+    // ======================================
+    // STEP 2: FIND STUDENT ANSWERS
+    // ======================================
 
-    const assessmentQuestions =
-      await AssessmentQuestion.find({
-        _id: { $in: assessmentQuestionIds },
-      }).select("_id assessment question marks");
-
-    const assessmentQuestionMap = new Map(
-      assessmentQuestions.map((item) => [
-        item._id.toString(),
-        item,
-      ]),
-    );
-
-    if (assessmentQuestionMap.size !== questionDetails.length) {
-      throw new Error(
-        "One or more assessment-question documents were not found.",
-      );
-    }
-
-    // Verify each question mapping and assessment.
-    for (const item of questionDetails) {
-      const assignment = assessmentQuestionMap.get(
-        item.assessmentQuestion,
-      );
-
-      if (assignment.question.toString() !== item.question) {
-        throw new Error(
-          `Question mapping mismatch for ${item.assessmentQuestion}`,
-        );
-      }
-
-      if (
-        assignment.assessment.toString() !==
-        result.assessment.toString()
-      ) {
-        throw new Error(
-          `Assessment question ${item.assessmentQuestion} does not belong to the result's assessment.`,
-        );
-      }
-
-      if (
-        !Number.isFinite(Number(assignment.marks)) ||
-        Number(assignment.marks) < 0
-      ) {
-        throw new Error(
-          `Invalid maximum marks for ${item.assessmentQuestion}`,
-        );
-      }
-    }
-
-    // Retrieve the submitted student answers for this attempt.
     const studentAnswers = await StudentAnswer.find({
-      attempt: result.attempt,
-      student: result.student,
-      assessmentQuestion: { $in: assessmentQuestionIds },
-    }).select("_id assessmentQuestion question student");
+      attempt: studentAttemptId,
+      student: studentId,
+    }).select("_id");
 
-    const studentAnswerMap = new Map(
-      studentAnswers.map((item) => [
-        item.assessmentQuestion.toString(),
-        item,
-      ]),
-    );
+    const studentAnswerIds = studentAnswers.map((answer) => answer._id);
 
-    // Retrieve the teacher's evaluations.
-    const studentAnswerIds = studentAnswers.map(
-      (item) => item._id,
-    );
+    // ======================================
+    // STEP 3: FIND ANSWER EVALUATIONS
+    // ======================================
 
-    const answerEvaluations = await AnswerEvaluation.find({
-      studentAnswer: { $in: studentAnswerIds },
-      student: result.student,
-      evaluationStatus: "EVALUATED",
-    }).select("studentAnswer marksAwarded maximumMarks");
+    const answerEvaluations =
+      studentAnswerIds.length > 0
+        ? await AnswerEvaluation.find({
+            studentAnswer: {
+              $in: studentAnswerIds,
+            },
+          }).select("_id")
+        : [];
 
-    const evaluationMap = new Map(
-      answerEvaluations.map((item) => [
-        item.studentAnswer.toString(),
-        item,
-      ]),
-    );
+    // ======================================
+    // STEP 4: FIND RESULTS
+    // ======================================
 
-    // Prevent duplicate result-detail documents on reruns.
-    const existingDetails = await ResultDetail.find({
-      result: RESULT_ID,
-      assessmentQuestion: { $in: assessmentQuestionIds },
-    }).select("assessmentQuestion");
+    const results = await Result.find({
+      assessment: assessmentId,
+      student: studentId,
+      attempt: studentAttemptId,
+    }).select("_id");
 
-    const existingIds = new Set(
-      existingDetails.map((item) =>
-        item.assessmentQuestion.toString(),
-      ),
-    );
+    const resultIds = results.map((result) => result._id);
 
-    const now = new Date();
-    const documentsToInsert = [];
+    // ======================================
+    // STEP 5: FIND RESULT DETAILS
+    // ======================================
 
-    for (const item of questionDetails) {
-      if (existingIds.has(item.assessmentQuestion)) {
-        console.log(
-          `Skipping existing result detail: ${item.assessmentQuestion}`,
-        );
-        continue;
-      }
+    const resultDetails =
+      resultIds.length > 0
+        ? await ResultDetail.find({
+            result: {
+              $in: resultIds,
+            },
+          }).select("_id")
+        : [];
 
-      const studentAnswer = studentAnswerMap.get(
-        item.assessmentQuestion,
-      );
+    // ======================================
+    // STEP 6: DISPLAY DELETION PREVIEW
+    // ======================================
 
-      if (!studentAnswer) {
-        throw new Error(
-          `Student answer not found for assessment question ${item.assessmentQuestion}`,
-        );
-      }
+    console.log("\n======================================");
+    console.log("DELETION PREVIEW");
+    console.log("======================================");
 
-      if (
-        studentAnswer.question.toString() !== item.question
-      ) {
-        throw new Error(
-          `Student-answer question mismatch for ${item.assessmentQuestion}`,
-        );
-      }
+    console.log("AnswerEvaluation:", answerEvaluations.length);
 
-      const evaluation = evaluationMap.get(
-        studentAnswer._id.toString(),
-      );
+    console.log("ResultDetail:", resultDetails.length);
 
-      if (!evaluation) {
-        throw new Error(
-          `Evaluated answer not found for ${item.assessmentQuestion}`,
-        );
-      }
+    console.log("StudentAnswer:", studentAnswers.length);
 
-      const assignment = assessmentQuestionMap.get(
-        item.assessmentQuestion,
-      );
+    console.log("Result:", results.length);
 
-      const maximumMarks = Number(assignment.marks);
-      const obtainedMarks = Number(evaluation.marksAwarded);
+    console.log("StudentAttempt:", 1);
 
-      if (
-        !Number.isFinite(obtainedMarks) ||
-        obtainedMarks < 0 ||
-        obtainedMarks > maximumMarks
-      ) {
-        throw new Error(
-          `Invalid marks for ${item.assessmentQuestion}: obtained=${obtainedMarks}, maximum=${maximumMarks}`,
-        );
-      }
+    console.log("\n======================================");
+    console.log("TOTAL DOCUMENTS");
+    console.log("======================================");
 
-      // Ensure the evaluation's recorded maximum is consistent.
-      if (
-        Number(evaluation.maximumMarks) !== maximumMarks
-      ) {
-        throw new Error(
-          `Maximum-marks mismatch for ${item.assessmentQuestion}: assessment=${maximumMarks}, evaluation=${evaluation.maximumMarks}`,
-        );
-      }
+    const totalDocuments =
+      answerEvaluations.length +
+      resultDetails.length +
+      studentAnswers.length +
+      results.length +
+      1;
 
-      documentsToInsert.push({
-        result: RESULT_ID,
-        assessmentQuestion: item.assessmentQuestion,
-        question: item.question,
+    console.log("Total:", totalDocuments);
 
-        subject: SUBJECT_ID,
-        chapter: item.chapter,
-        topic: item.topic,
+    // ======================================
+    // STEP 7: DRY RUN CHECK
+    // ======================================
 
-        questionType: "DESCRIPTIVE",
+    if (DRY_RUN) {
+      console.log("\nDRY RUN COMPLETED.");
+      console.log("No documents were deleted.");
 
-        maximumMarks,
-        obtainedMarks,
-
-        evaluationStatus: "EVALUATED",
-        evaluatedBy: TEACHER_ID,
-        evaluatedAt: evaluation.evaluatedAt ?? now,
-      });
-    }
-
-    if (documentsToInsert.length === 0) {
       console.log(
-        "\nAll supplied result details already exist. Nothing to insert.",
+        "\nAfter checking the preview, set DRY_RUN = false and run again.",
       );
+
       return;
     }
 
-    const insertedDetails = await ResultDetail.insertMany(
-      documentsToInsert,
-      { ordered: true },
-    );
+    // ======================================
+    // STEP 8: DELETE RELATED DOCUMENTS
+    // ======================================
 
-    console.log("\nResult Details seeded successfully.");
-    console.log("Expected:", questionDetails.length);
-    console.log("Already existed:", existingIds.size);
-    console.log("Inserted:", insertedDetails.length);
+    console.log("\nStarting database deletion...");
 
-    insertedDetails.forEach((item) => {
-      console.log({
-        id: item._id.toString(),
-        result: item.result.toString(),
-        assessmentQuestion: item.assessmentQuestion.toString(),
-        question: item.question.toString(),
-        subject: item.subject.toString(),
-        chapter: item.chapter.toString(),
-        topic: item.topic.toString(),
-        questionType: item.questionType,
-        maximumMarks: item.maximumMarks,
-        obtainedMarks: item.obtainedMarks,
-        evaluationStatus: item.evaluationStatus,
-        evaluatedBy: item.evaluatedBy?.toString(),
-      });
+    // 1. Delete AnswerEvaluation documents.
+
+    const evaluationDeleteResult = await AnswerEvaluation.deleteMany({
+      studentAnswer: {
+        $in: studentAnswerIds,
+      },
     });
-  } catch (error) {
-    console.error(
-      "\nError seeding Result Details:",
-      error.message,
+
+    console.log(
+      "AnswerEvaluation deleted:",
+      evaluationDeleteResult.deletedCount,
     );
 
-    process.exitCode = 1;
+    // 2. Delete ResultDetail documents.
+
+    const resultDetailDeleteResult = await ResultDetail.deleteMany({
+      result: {
+        $in: resultIds,
+      },
+    });
+
+    console.log("ResultDetail deleted:", resultDetailDeleteResult.deletedCount);
+
+    // 3. Delete StudentAnswer documents.
+
+    const studentAnswerDeleteResult = await StudentAnswer.deleteMany({
+      attempt: studentAttemptId,
+      student: studentId,
+    });
+
+    console.log(
+      "StudentAnswer deleted:",
+      studentAnswerDeleteResult.deletedCount,
+    );
+
+    // 4. Delete Result documents.
+
+    const resultDeleteResult = await Result.deleteMany({
+      assessment: assessmentId,
+      student: studentId,
+      attempt: studentAttemptId,
+    });
+
+    console.log("Result deleted:", resultDeleteResult.deletedCount);
+
+    // 5. Delete the specific StudentAttempt.
+
+    const studentAttemptDeleteResult = await StudentAttempt.deleteOne({
+      _id: studentAttemptId,
+      assessment: assessmentId,
+      student: studentId,
+    });
+
+    console.log(
+      "StudentAttempt deleted:",
+      studentAttemptDeleteResult.deletedCount,
+    );
+
+    // ======================================
+    // STEP 9: FINAL SUMMARY
+    // ======================================
+
+    console.log("\n======================================");
+    console.log("DELETION SUMMARY");
+    console.log("======================================");
+
+    console.log("AnswerEvaluation:", evaluationDeleteResult.deletedCount);
+
+    console.log("ResultDetail:", resultDetailDeleteResult.deletedCount);
+
+    console.log("StudentAnswer:", studentAnswerDeleteResult.deletedCount);
+
+    console.log("Result:", resultDeleteResult.deletedCount);
+
+    console.log("StudentAttempt:", studentAttemptDeleteResult.deletedCount);
+
+    console.log(
+      "\nTOTAL DELETED:",
+      evaluationDeleteResult.deletedCount +
+        resultDetailDeleteResult.deletedCount +
+        studentAnswerDeleteResult.deletedCount +
+        resultDeleteResult.deletedCount +
+        studentAttemptDeleteResult.deletedCount,
+    );
+
+    console.log("\nDELETION COMPLETED SUCCESSFULLY.");
+  } catch (error) {
+    console.error("\nAssessment attempt deletion failed:", error);
   } finally {
     await mongoose.disconnect();
-    console.log("\nDatabase connection closed.");
   }
 };
 
-seedResultDetails();
+deleteIncorrectAssessmentAttemptData();

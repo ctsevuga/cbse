@@ -49,6 +49,37 @@ export const userApiSlice = apiSlice.injectEndpoints({
     }),
 
     // ======================================================
+// TEACHER USERS
+// ======================================================
+
+getTeacherUsers: builder.query({
+  query: () => ({
+    url: `${USERS_URL}/teachers`,
+  }),
+
+  providesTags: (result) =>
+    result?.users
+      ? [
+          ...result.users.map((user) => ({
+            type: "User",
+            id: user._id,
+          })),
+          {
+            type: "User",
+            id: "TEACHERS",
+          },
+        ]
+      : [
+          {
+            type: "User",
+            id: "TEACHERS",
+          },
+        ],
+
+  keepUnusedDataFor: 5,
+}),
+
+    // ======================================================
     // PASSWORD RESET MANAGEMENT
     // ======================================================
 
@@ -181,4 +212,8 @@ export const {
   useGetUserDetailsQuery,
   useUpdateUserMutation,
   useDeleteUserMutation,
+
+  // Teacher users
+  useGetTeacherUsersQuery,
+
 } = userApiSlice;

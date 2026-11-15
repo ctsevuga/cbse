@@ -1,8 +1,13 @@
 import asyncHandler from "../middleware/asyncHandler.js";
 import mongoose from "mongoose";
+import Teacher from "../models/teacherModel.js";
+import TeacherAssignment from "../models/teacherAssignmentModel.js";
+import AnswerEvaluation from "../models/answerEvaluationModel.js";
 
+import StudentParent from "../models/studentParentModel.js";
 import StudentAttempt from "../models/studentAttemptModel.js";
 import Student from "../models/studentModel.js";
+import Parent from "../models/parentModel.js";
 import Assessment from "../models/assessmentModel.js";
 import Question from "../models/questionModel.js";
 import StudentAnswer from "../models/studentAnswerModel.js";
@@ -1037,6 +1042,44 @@ const parseAttemptedQuestions = (
   return attemptedQuestions;
 };
 
+const requireParentUser = (req) => {
+  if (!req.user) {
+    const error = new Error("Not authorized");
+    error.statusCode = 401;
+    throw error;
+  }
+
+  if (req.user.role !== "PARENT") {
+    const error = new Error(
+      "Access restricted to parents."
+    );
+
+    error.statusCode = 403;
+    throw error;
+  }
+
+  return req.user;
+};
+
+const getParentFromUser = async (req) => {
+  const schoolId = getUserSchool(req);
+
+  const parent = await Parent.findOne({
+    user: req.user._id,
+    school: schoolId,
+  });
+
+  if (!parent) {
+    const error = new Error(
+      "Parent profile not found for this user."
+    );
+
+    error.statusCode = 404;
+    throw error;
+  }
+
+  return parent;
+};
 
 /*
  * ---------------------------------------------------------
@@ -1054,158 +1097,131 @@ const parseAttemptedQuestions = (
  *
  * Both are derived from authentication.
  */
+
+
+
+
+
 export const startStudentAttempt =
-  asyncHandler(
-    async (req, res) => {
-      requireStudentUser(req);
+  asyncHandler(async (req, res) => {
+    requireStudentUser(req);
 
-      const schoolId =
-        getUserSchool(req);
+    const schoolId = getUserSchool(req);
+    const { assessmentId } = req.body;
 
-      const {
-        assessmentId,
-      } = req.body;
+    validateObjectId(assessmentId, "assessment ID");
 
-      validateObjectId(
-        assessmentId,
-        "assessment ID",
-      );
+    const student = await getStudentFromUser(req);
 
-      const student =
-        await getStudentFromUser(
-          req,
+    const assessment = await validateAssessment(
+      assessmentId,
+      schoolId,
+    );
+
+    validateAssessmentWindow(assessment);
+    validateStudentForAssessment(student, assessment);
+
+    const activeAttempt = await findActiveAttempt(
+      assessment._id,
+      student._id,
+    );
+
+    if (activeAttempt) {
+      if (activeAttempt.status !== "IN_PROGRESS") {
+        const conflictError = createError(
+          "The student already has an active attempt for this assessment",
+          409,
         );
 
-      const assessment =
-        await validateAssessment(
-          assessmentId,
-          schoolId,
-        );
-
-      validateAssessmentWindow(
-        assessment,
-      );
-
-      validateStudentForAssessment(
-        student,
-        assessment,
-      );
-
-      await validateMaxAttempts(
-        assessment,
-        student._id,
-      );
-
-      await validateNoActiveAttempt(
-        assessment._id,
-        student._id,
-      );
-
-      const questionOrder =
-        await createAttemptQuestionOrder(
-          assessment,
-        );
-
-      const attemptNumber =
-        await getNextAttemptNumber(
-          assessment._id,
-          student._id,
-        );
-
-      const now =
-        new Date();
-
-      try {
-        const attempt =
-          await StudentAttempt.create({
-            assessment:
-              assessment._id,
-
-            student:
-              student._id,
-
-            attemptNumber,
-
-            startedAt:
-              now,
-
-            lastActivityAt:
-              now,
-
-            durationMinutes:
-              assessment.durationMinutes,
-
-            status:
-              "IN_PROGRESS",
-
-            questionOrder,
-
-            totalQuestions:
-              questionOrder.length,
-
-            attemptedQuestions:
-              0,
-
-            totalMarks:
-              assessment.totalMarks,
-
-            obtainedMarks:
-              0,
-
-            timeSpent:
-              0,
-          });
-
-        const result =
-          await populateStudentAttempt(
-            StudentAttempt.findById(
-              attempt._id,
-            ),
-          );
-
-        res.status(201).json(
-          await result,
-        );
-      } catch (error) {
-        /*
-         * The database unique active-attempt
-         * index is the final protection against
-         * two simultaneous start requests.
-         */
-        if (
-          error?.code === 11000
-        ) {
-          const activeAttempt =
-            await findActiveAttempt(
-              assessment._id,
-              student._id,
-            );
-
-          if (
-            activeAttempt
-          ) {
-            const conflictError =
-              createError(
-                "The student already has an active attempt for this assessment",
-                409,
-              );
-
-            conflictError.attemptId =
-              activeAttempt._id;
-
-            throw conflictError;
-          }
-
-          throw createError(
-            "Unable to create the attempt because another attempt was created concurrently. Please try again.",
-            409,
-          );
-        }
-
-        throw error;
+        conflictError.attemptId = activeAttempt._id;
+        throw conflictError;
       }
-    },
-  );
+
+      // Delete answers belonging to the previous attempt.
+      await StudentAnswer.deleteMany({
+        attempt: activeAttempt._id,
+      });
+
+      // Delete the previous in-progress attempt.
+      const deletion = await StudentAttempt.deleteOne({
+        _id: activeAttempt._id,
+        student: student._id,
+        assessment: assessment._id,
+        status: "IN_PROGRESS",
+      });
+
+      if (deletion.deletedCount !== 1) {
+        throw createError(
+          "The previous attempt could not be deleted. Please try again.",
+          409,
+        );
+      }
+    }
+
+    await validateMaxAttempts(assessment, student._id);
+
+    const questionOrder =
+      await createAttemptQuestionOrder(assessment);
+
+    if (!Array.isArray(questionOrder)) {
+      throw createError(
+        "Unable to create the attempt: invalid question order",
+        500,
+      );
+    }
+
+    const attemptNumber = await getNextAttemptNumber(
+      assessment._id,
+      student._id,
+    );
+
+    const now = new Date();
+
+    try {
+      const attempt = await StudentAttempt.create({
+        assessment: assessment._id,
+        student: student._id,
+        attemptNumber,
+        startedAt: now,
+        activeSessionStartedAt: now,
+        lastActivityAt: now,
+        durationMinutes: assessment.durationMinutes,
+        status: "IN_PROGRESS",
+        questionOrder,
+        totalQuestions: questionOrder.length,
+        attemptedQuestions: 0,
+        totalMarks: assessment.totalMarks,
+        obtainedMarks: 0,
+        timeSpent: 0,
+      });
+
+      const result = await populateStudentAttempt(
+        StudentAttempt.findById(attempt._id),
+      );
+
+      return res.status(201).json({
+        message:
+          activeAttempt
+            ? "Your previous attempt was deleted. A new assessment attempt has started."
+            : "Your assessment attempt has started.",
+        attempt: await result,
+      });
+    } catch (error) {
+      if (error?.code === 11000) {
+        throw createError(
+          "Another attempt was created concurrently. Please refresh and try again.",
+          409,
+        );
+      }
+
+      throw error;
+    }
+  });
+
+
+
+
+
 
 
 /*
@@ -1322,61 +1338,283 @@ export const getStudentAttempts =
     },
   );
 
+  
+export const getTeacherStudentAttempts = asyncHandler(
+  async (req, res) => {
+    const schoolId = getUserSchool(req);
+    const { studentId } = req.params;
+
+    // 1. Validate teacher access
+    if (req.user.role !== "TEACHER") {
+      res.status(403);
+      throw new Error("Only teachers can access this resource.");
+    }
+
+    if (!schoolId) {
+      res.status(403);
+      throw new Error("Teacher does not belong to a school.");
+    }
+
+    validateObjectId(studentId, "Student ID");
+
+    // 2. Find active student belonging to the teacher's school
+    const student = await Student.findOne({
+      _id: studentId,
+      school: schoolId,
+      isActive: true,
+    }).select("_id academicYear class section");
+
+    if (!student) {
+      res.status(404);
+      throw new Error("Student not found.");
+    }
+
+    // 3. Find teacher profile
+    const teacher = await Teacher.findOne({
+      user: req.user._id,
+      school: schoolId,
+      isActive: true,
+    }).select("_id");
+
+    if (!teacher) {
+      res.status(404);
+      throw new Error("Teacher profile not found.");
+    }
+
+    // 4. Find all active assignments for this
+    // student's academic year, class and section.
+    const assignments = await TeacherAssignment.find({
+      school: schoolId,
+      teacher: teacher._id,
+      academicYear: student.academicYear,
+      class: student.class,
+      section: student.section,
+      assignmentType: {
+        $in: ["CLASS_TEACHER", "SUBJECT_TEACHER"],
+      },
+      isActive: true,
+    }).select("assignmentType subject");
+
+    if (!assignments.length) {
+      res.status(403);
+      throw new Error(
+        "You are not authorized to view this student's assessment attempts."
+      );
+    }
+
+    // 5. CLASS_TEACHER takes precedence over SUBJECT_TEACHER.
+    const isClassTeacher = assignments.some(
+      (assignment) =>
+        assignment.assignmentType === "CLASS_TEACHER"
+    );
+
+    let subjectIds = [];
+
+    if (!isClassTeacher) {
+      // SUBJECT_TEACHER: collect all assigned subjects.
+      subjectIds = [
+        ...new Set(
+          assignments
+            .filter(
+              (assignment) =>
+                assignment.assignmentType === "SUBJECT_TEACHER"
+            )
+            .map((assignment) => assignment.subject?.toString())
+            .filter(Boolean)
+        ),
+      ];
+
+      if (!subjectIds.length) {
+        res.status(403);
+        throw new Error(
+          "No subjects are assigned to this teacher for the student."
+        );
+      }
+    }
+
+    // 6. Retrieve assessments belonging to the school.
+    // Subject teachers can access only their assigned subjects.
+    const assessmentFilter = {
+      school: schoolId,
+    };
+
+    if (!isClassTeacher) {
+      assessmentFilter.subject = {
+        $in: subjectIds,
+      };
+    }
+
+    const assessments = await Assessment.find(
+      assessmentFilter
+    ).select("_id");
+
+    const assessmentIds = assessments.map(
+      (assessment) => assessment._id
+    );
+
+    // 7. Retrieve student attempts.
+    const filter = {
+      student: student._id,
+      assessment: {
+        $in: assessmentIds,
+      },
+    };
+
+    if (req.query.status) {
+      filter.status = req.query.status;
+    }
+
+    const attempts = await populateStudentAttempt(
+      StudentAttempt.find(filter).sort({
+        createdAt: -1,
+      })
+    );
+
+    res.json(attempts);
+  }
+);
+
 
 /*
  * ---------------------------------------------------------
  * GET SINGLE ATTEMPT
  * ---------------------------------------------------------
  */
-export const getStudentAttemptById =
-  asyncHandler(
-    async (req, res) => {
-      validateObjectId(
-        req.params.id,
-        "attempt ID",
+
+export const getStudentAttemptById = asyncHandler(
+  async (req, res) => {
+    validateObjectId(req.params.id, "attempt ID");
+
+    const attempt = await populateStudentAttempt(
+      StudentAttempt.findById(req.params.id)
+    );
+
+    if (!attempt) {
+      throw createError("Student attempt not found", 404);
+    }
+
+    validateAttemptAccess(attempt, req);
+
+    /*
+     * STUDENT ACCESS VALIDATION
+     */
+    if (req.user.role === STUDENT_ROLE) {
+      validateStudentAttemptOwner(attempt, req);
+    }
+
+    /*
+     * FETCH TEACHER EVALUATIONS
+     *
+     * Only for EVALUATED attempts.
+     */
+    if (attempt.status === "EVALUATED") {
+
+      /*
+       * STEP 1: FETCH STUDENT ANSWERS
+       */
+      const studentAnswers = await StudentAnswer.find({
+        attempt: attempt._id,
+      })
+        .populate("question")
+        .populate("assessmentQuestion")
+        .lean();
+
+      /*
+       * STEP 2: FETCH ANSWER EVALUATIONS
+       */
+      const studentAnswerIds = studentAnswers.map(
+        (answer) => answer._id
       );
 
-      const attempt =
-        await populateStudentAttempt(
-          StudentAttempt.findById(
-            req.params.id,
-          ),
-        );
+      const evaluations = await AnswerEvaluation.find({
+        studentAnswer: {
+          $in: studentAnswerIds,
+        },
+      })
+        .populate("teacher")
+        .populate("updatedBy")
+        .sort({
+          evaluatedAt: -1,
+          updatedAt: -1,
+        })
+        .lean();
 
-      if (!attempt) {
-        throw createError(
-          "Student attempt not found",
-          404,
-        );
-      }
+      /*
+       * STEP 3: CREATE EVALUATION LOOKUP
+       *
+       * Latest evaluation per student answer.
+       */
+      const evaluationMap = new Map();
 
-      validateAttemptAccess(
-        attempt,
-        req,
+      evaluations.forEach((evaluation) => {
+        const answerId =
+          evaluation.studentAnswer?.toString();
+
+        if (
+          answerId &&
+          !evaluationMap.has(answerId)
+        ) {
+          evaluationMap.set(answerId, evaluation);
+        }
+      });
+
+      /*
+       * STEP 4: COMBINE STUDENT ANSWERS
+       * WITH TEACHER EVALUATIONS
+       */
+      const evaluatedAnswers = studentAnswers.map(
+        (answer) => {
+          const evaluation = evaluationMap.get(
+            answer._id.toString()
+          );
+
+          return {
+            ...answer,
+
+            evaluation: evaluation
+              ? {
+                  _id: evaluation._id,
+
+                  maximumMarks:
+                    evaluation.maximumMarks,
+
+                  marksAwarded:
+                    evaluation.marksAwarded,
+
+                  feedback:
+                    evaluation.feedback,
+
+                  evaluationStatus:
+                    evaluation.evaluationStatus,
+
+                  evaluatedAt:
+                    evaluation.evaluatedAt,
+
+                  teacher:
+                    evaluation.teacher,
+
+                  updatedBy:
+                    evaluation.updatedBy,
+                }
+              : null,
+          };
+        }
       );
 
       /*
-       * A student can only see their own
-       * attempt.
-       *
-       * Staff access is controlled by the
-       * route authorization middleware.
+       * STEP 5: ATTACH TO ATTEMPT
        */
-      if (
-        req.user.role ===
-        STUDENT_ROLE
-      ) {
-        validateStudentAttemptOwner(
-          attempt,
-          req,
-        );
-      }
+      const response = attempt.toObject();
 
-      res.json(
-        attempt,
-      );
-    },
-  );
+response.evaluatedAnswers = evaluatedAnswers;
+
+return res.json(response);
+    }
+
+    
+  }
+);
+
 
 
 /*
@@ -1624,6 +1862,91 @@ export const getMyStudentAttempts =
       );
     },
   );
+
+
+export const getMyChildrenAttempts =
+  asyncHandler(async (req, res) => {
+    requireParentUser(req);
+
+    const parent =
+      await getParentFromUser(req);
+
+    const schoolId =
+      getUserSchool(req);
+
+    // Get all active children linked to this parent
+    const studentParentRecords =
+      await StudentParent.find({
+        parent: parent._id,
+        isActive: true,
+      }).select("student");
+
+    const studentIds =
+      studentParentRecords.map(
+        (record) => record.student
+      );
+
+    // No children linked to this parent
+    if (!studentIds.length) {
+      return res.json([]);
+    }
+
+    // Only allow attempts belonging to linked children
+    const filter = {
+      student: {
+        $in: studentIds,
+      },
+    };
+
+    // Optional child filter
+    if (req.query.studentId) {
+      const isLinkedChild =
+        studentIds.some(
+          (id) =>
+            id.toString() ===
+            req.query.studentId
+        );
+
+      if (!isLinkedChild) {
+        return res.status(403).json({
+          message:
+            "You are not authorized to access this student's attempts.",
+        });
+      }
+
+      filter.student =
+        req.query.studentId;
+    }
+
+    // Optional assessment filter
+    if (req.query.assessmentId) {
+      const assessment =
+        await validateAssessment(
+          req.query.assessmentId,
+          schoolId
+        );
+
+      filter.assessment =
+        assessment._id;
+    }
+
+    // Optional status filter
+    if (req.query.status) {
+      filter.status =
+        req.query.status;
+    }
+
+    const attempts =
+      await populateStudentAttempt(
+        StudentAttempt.find(filter)
+          .sort({
+            createdAt: -1,
+          })
+      );
+
+    res.json(attempts);
+  });
+
 
 
 /*
