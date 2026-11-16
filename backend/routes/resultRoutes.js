@@ -291,7 +291,7 @@ Original publication audit is retained.
 router.patch(
   "/:id/withdraw",
   protect,
-  hmOrAdmin,
+  teacherOrHmOrAdmin,
   withdrawResult,
 );
 
