@@ -1128,14 +1128,7 @@ const HomeScreen = () => {
                 <p className="mt-2 text-gray-600"> Evaluation Dashboard</p>
               </button> */}
 
-              <button
-                type="button"
-                onClick={() => navigate("/results")}
-                className="rounded-2xl bg-white p-6 text-left shadow-lg transition-all hover:-translate-y-1 hover:shadow-xl"
-              >
-                <h3 className="text-xl font-bold text-red-600">Result List</h3>
-                <p className="mt-2 text-gray-600"> Result List</p>
-              </button>
+             
               <button
                 type="button"
                 onClick={() => navigate("/results/assessment")}
