@@ -217,7 +217,9 @@ const CreateAssessmentQuestionScreen = () => {
     },
   );
 
-  const assessments = getArray(assessmentsData, ["assessments"]);
+  const assessments = getArray(assessmentsData, ["assessments"]).filter(
+    (item) => String(item?.status || "").toUpperCase() === "DRAFT",
+  );
 
   const sections = getArray(sectionsData, ["sections"]);
 
@@ -384,7 +386,21 @@ const CreateAssessmentQuestionScreen = () => {
     if (failures.length === 0) {
       toast.success(`Successfully assigned all ${succeeded} questions.`);
 
-      navigate("/assessment-questions");
+      // Keep the teacher on this screen and allow assigning questions
+      // to another section of the same assessment.
+      setSection("");
+      setSelectedQuestions([]);
+      setMarks("");
+      setNegativeMarks("0");
+      setQuestionGroup("");
+      setSearchInput("");
+      setSearch("");
+      setQuestionType("");
+      setQuestionMarks("");
+      setSubject("");
+      setChapter("");
+      setTopic("");
+      setPage(1);
       return;
     }
 
