@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
@@ -21,26 +21,6 @@ import {
 import {
   useGetAssessmentsQuery,
 } from "../../slices/assessmentApiSlice";
-
-import {
-  useGetStreamsQuery,
-} from "../../slices/streamApiSlice";
-
-import {
-  useGetSubjectsQuery,
-} from "../../slices/subjectApiSlice";
-
-import {
-  useGetAcademicYearsQuery,
-} from "../../slices/academicYearApiSlice";
-
-import {
-  useGetClassesQuery,
-} from "../../slices/classApiSlice";
-
-import {
-  useGetSectionsQuery,
-} from "../../slices/sectionApiSlice";
 
 const QUESTION_TYPES = [
   "MCQ",
@@ -69,6 +49,40 @@ const getName = (item) =>
   item?.code ||
   "";
 
+const getReferenceName = (value, fallback = "Not available") => {
+  if (!value) return fallback;
+
+  if (typeof value === "string") {
+    // Reference IDs are not useful to display as academic labels.
+    return fallback;
+  }
+
+  return (
+    value.name ||
+    value.title ||
+    value.code ||
+    value.year ||
+    value.academicYearName ||
+    value.className ||
+    value.sectionName ||
+    value.subjectName ||
+    fallback
+  );
+};
+
+const formatDate = (value) => {
+  if (!value) return "Not set";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Not set";
+
+  return date.toLocaleDateString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+};
+
 const getErrorMessage = (error) =>
   error?.data?.message ||
   error?.error ||
@@ -89,76 +103,14 @@ const CreateAssessmentSectionScreen = () => {
     order: "",
   });
 
-  const [filters, setFilters] = useState({
-    stream: "",
-    subject: "",
-    academicYear: "",
-    class: "",
-    section: "",
-  });
-
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
-
-  const {
-    data: streamsData,
-    isLoading: streamsLoading,
-  } = useGetStreamsQuery();
-
-  const {
-    data: subjectsData,
-    isLoading: subjectsLoading,
-  } = useGetSubjectsQuery();
-
-  const {
-    data: academicYearsData,
-    isLoading: academicYearsLoading,
-  } = useGetAcademicYearsQuery();
-
-  const {
-    data: classesData,
-    isLoading: classesLoading,
-  } = useGetClassesQuery();
-
-  const {
-    data: sectionsData,
-    isLoading: sectionsLoading,
-  } = useGetSectionsQuery();
-
-  const assessmentParams = useMemo(() => {
-    const params = {};
-
-    if (filters.stream) {
-      params.stream = filters.stream;
-    }
-
-    if (filters.subject) {
-      params.subject = filters.subject;
-    }
-
-    if (filters.academicYear) {
-      params.academicYear =
-        filters.academicYear;
-    }
-
-    if (filters.class) {
-      params.class = filters.class;
-    }
-
-    if (filters.section) {
-      params.section = filters.section;
-    }
-
-    return params;
-  }, [filters]);
 
   const {
     data: assessmentsData,
     isLoading: assessmentsLoading,
     isFetching: assessmentsFetching,
-  } = useGetAssessmentsQuery(
-    assessmentParams,
-  );
+  } = useGetAssessmentsQuery();
 
   const [
     createAssessmentSection,
@@ -167,35 +119,14 @@ const CreateAssessmentSectionScreen = () => {
     },
   ] = useCreateAssessmentSectionMutation();
 
-  const streams = Array.isArray(streamsData)
-    ? streamsData
-    : streamsData?.streams || [];
-
-  const subjects = Array.isArray(subjectsData)
-    ? subjectsData
-    : subjectsData?.subjects || [];
-
-  const academicYears = Array.isArray(
-    academicYearsData,
-  )
-    ? academicYearsData
-    : academicYearsData?.academicYears || [];
-
-  const classes = Array.isArray(classesData)
-    ? classesData
-    : classesData?.classes || [];
-
-  const sections = Array.isArray(
-    sectionsData,
-  )
-    ? sectionsData
-    : sectionsData?.sections || [];
-
-  const assessments = Array.isArray(
-    assessmentsData,
-  )
-    ? assessmentsData
-    : assessmentsData?.assessments || [];
+  const assessments = (
+    Array.isArray(assessmentsData)
+      ? assessmentsData
+      : assessmentsData?.assessments || []
+  ).filter(
+    (assessment) =>
+      String(assessment?.status || "").toUpperCase() === "DRAFT",
+  );
 
   const selectedAssessment = assessments.find(
     (assessment) =>
@@ -277,30 +208,6 @@ const newSectionExceedsMaximum =
     formData.marksPerQuestion,
     formData.numberOfQuestions,
   ]);
-
-  const handleFilterChange = (event) => {
-    const { name, value } = event.target;
-
-    setFilters((previous) => ({
-      ...previous,
-      [name]: value,
-    }));
-
-    if (
-      [
-        "stream",
-        "subject",
-        "academicYear",
-        "class",
-        "section",
-      ].includes(name)
-    ) {
-      setFormData((previous) => ({
-        ...previous,
-        assessment: "",
-      }));
-    }
-  };
 
   const handleChange = (event) => {
     const { name, value } = event.target;
@@ -440,28 +347,6 @@ const newSectionExceedsMaximum =
     }
   };
 
-  const resetFilters = () => {
-    setFilters({
-      stream: "",
-      subject: "",
-      academicYear: "",
-      class: "",
-      section: "",
-    });
-
-    setFormData((previous) => ({
-      ...previous,
-      assessment: "",
-    }));
-  };
-
-  const isLoadingData =
-    streamsLoading ||
-    subjectsLoading ||
-    academicYearsLoading ||
-    classesLoading ||
-    sectionsLoading;
-
   return (
     <div className="min-h-screen bg-slate-50 px-4 py-6 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-6xl">
@@ -531,86 +416,6 @@ const newSectionExceedsMaximum =
               </div>
             )}
 
-            <div className="mb-8">
-              <div className="mb-4 flex items-center gap-3">
-                <div className="rounded-lg bg-indigo-50 p-2 text-indigo-600">
-                  <Layers3 className="h-5 w-5" />
-                </div>
-
-                <div>
-                  <h3 className="font-semibold text-slate-900">
-                    Academic Structure
-                  </h3>
-                  <p className="text-sm text-slate-500">
-                    Narrow down the assessments
-                    using the academic structure.
-                  </p>
-                </div>
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-3">
-                <SelectField
-                  label="Stream"
-                  name="stream"
-                  value={filters.stream}
-                  onChange={handleFilterChange}
-                  options={streams}
-                  placeholder="All streams"
-                  disabled={isLoadingData}
-                />
-
-                <SelectField
-                  label="Subject"
-                  name="subject"
-                  value={filters.subject}
-                  onChange={handleFilterChange}
-                  options={subjects}
-                  placeholder="All subjects"
-                  disabled={isLoadingData}
-                />
-
-                <SelectField
-                  label="Academic Year"
-                  name="academicYear"
-                  value={filters.academicYear}
-                  onChange={handleFilterChange}
-                  options={academicYears}
-                  placeholder="All academic years"
-                  disabled={isLoadingData}
-                />
-
-                <SelectField
-                  label="Class"
-                  name="class"
-                  value={filters.class}
-                  onChange={handleFilterChange}
-                  options={classes}
-                  placeholder="All classes"
-                  disabled={isLoadingData}
-                />
-
-                <SelectField
-                  label="Section"
-                  name="section"
-                  value={filters.section}
-                  onChange={handleFilterChange}
-                  options={sections}
-                  placeholder="All sections"
-                  disabled={isLoadingData}
-                />
-
-                <div className="flex items-end">
-                  <button
-                    type="button"
-                    onClick={resetFilters}
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-100"
-                  >
-                    Reset Filters
-                  </button>
-                </div>
-              </div>
-            </div>
-
             <div className="mb-8 rounded-2xl border border-indigo-100 bg-indigo-50/50 p-5">
               <div className="mb-4 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
@@ -673,45 +478,105 @@ const newSectionExceedsMaximum =
               {!assessmentsLoading &&
                 assessments.length === 0 && (
                   <p className="mt-3 text-sm text-amber-700">
-                    No assessments match the
-                    selected filters.
+                    No DRAFT assessments are available. Create an assessment first or check its status.
                   </p>
                 )}
 
               {selectedAssessment && (
-                <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                  <InfoCard
-                    label="Type"
-                    value={formatLabel(
-                      selectedAssessment.assessmentType ||
-                        "",
-                    )}
-                  />
+                <div className="mt-5 space-y-4">
+                  <div className="rounded-xl border border-indigo-100 bg-white p-4">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                          Selected assessment
+                        </p>
+                        <h4 className="mt-1 text-lg font-bold text-slate-900">
+                          {selectedAssessment.title || getName(selectedAssessment)}
+                        </h4>
+                        {selectedAssessment.description && (
+                          <p className="mt-1 text-sm text-slate-600">
+                            {selectedAssessment.description}
+                          </p>
+                        )}
+                      </div>
 
-                  <InfoCard
-                    label="Questions"
-                    value={
-                      selectedAssessment.totalQuestions ??
-                      "-"
-                    }
-                  />
+                      <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">
+                        {selectedAssessment.status || "DRAFT"}
+                      </span>
+                    </div>
+                  </div>
 
-                  <InfoCard
-                    label="Marks"
-                    value={
-                      selectedAssessment.totalMarks ??
-                      "-"
-                    }
-                  />
+                  <div>
+                    <h4 className="mb-3 text-sm font-semibold text-slate-700">
+                      Academic Structure
+                    </h4>
+                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+                      <InfoCard
+                        label="Academic Year"
+                        value={getReferenceName(selectedAssessment.academicYear)}
+                      />
+                      <InfoCard
+                        label="Class"
+                        value={getReferenceName(selectedAssessment.class)}
+                      />
+                      <InfoCard
+                        label="Section"
+                        value={getReferenceName(selectedAssessment.section, "All sections")}
+                      />
+                      <InfoCard
+                        label="Stream"
+                        value={getReferenceName(selectedAssessment.stream, "Not applicable")}
+                      />
+                      <InfoCard
+                        label="Subject"
+                        value={getReferenceName(selectedAssessment.subject)}
+                      />
+                    </div>
+                  </div>
 
-                  <InfoCard
-                    label="Duration"
-                    value={
-                      selectedAssessment.durationMinutes
-                        ? `${selectedAssessment.durationMinutes} min`
-                        : "-"
-                    }
-                  />
+                  <div>
+                    <h4 className="mb-3 text-sm font-semibold text-slate-700">
+                      Assessment Configuration
+                    </h4>
+                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                      <InfoCard
+                        label="Assessment Type"
+                        value={formatLabel(selectedAssessment.assessmentType || "")}
+                      />
+                      <InfoCard
+                        label="Total Questions"
+                        value={selectedAssessment.totalQuestions ?? "-"}
+                      />
+                      <InfoCard
+                        label="Total Marks"
+                        value={selectedAssessment.totalMarks ?? "-"}
+                      />
+                      <InfoCard
+                        label="Duration"
+                        value={
+                          selectedAssessment.durationMinutes
+                            ? `${selectedAssessment.durationMinutes} min`
+                            : "-"
+                        }
+                      />
+                      <InfoCard
+                        label="Start Date"
+                        value={formatDate(selectedAssessment.startDate)}
+                      />
+                      <InfoCard
+                        label="End Date"
+                        value={formatDate(selectedAssessment.endDate)}
+                      />
+                      <InfoCard
+                        label="Maximum Attempts"
+                        value={selectedAssessment.maxAttempts ?? 1}
+                      />
+                      <InfoCard
+                        label="Question Randomization"
+                        value={selectedAssessment.randomizeQuestions ? "Enabled" : "Disabled"}
+                      />
+                    </div>
+                  </div>
                 </div>
               )}
             </div>

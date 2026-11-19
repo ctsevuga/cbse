@@ -10,6 +10,7 @@ import {
   getQuestionsByChoiceGroup,
   getQuestionsByQuestionType,
   updateAssessmentQuestion,
+  getAssessmentQuestionsForConfiguration,
   deleteAssessmentQuestion,
 } from "../controllers/assessmentQuestionController.js";
 
@@ -120,6 +121,30 @@ router.get(
     ...assessmentQuestionRoles,
   ),
   getQuestionsBySection,
+);
+
+/*
+==========================================================
+Assessment Questions For Configuration
+==========================================================
+*/
+
+/*
+ * GET /:assessmentId/configuration-questions
+ *
+ * Retrieves all questions assigned to an assessment,
+ * across all assessment sections.
+ *
+ * Used by the assessment question configuration screen
+ * to display previously assigned questions.
+ */
+router.get(
+  "/:assessmentId/configuration-questions",
+  protect,
+  allowRole(
+    ...assessmentQuestionRoles,
+  ),
+  getAssessmentQuestionsForConfiguration,
 );
 
 /*

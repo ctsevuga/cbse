@@ -387,9 +387,7 @@ const validateAssessmentStatus = (
  * Populate Assessment Question
  * ======================================================
  */
-const populateAssessmentQuestion = (
-  query,
-) =>
+const populateAssessmentQuestion = (query) =>
   query
     .populate({
       path: "assessment",
@@ -400,8 +398,7 @@ const populateAssessmentQuestion = (
         },
         {
           path: "academicYear",
-          select:
-            "name startDate endDate isCurrent",
+          select: "name startDate endDate isCurrent",
         },
         {
           path: "class",
@@ -409,8 +406,7 @@ const populateAssessmentQuestion = (
         },
         {
           path: "section",
-          select:
-            "name classTeacher",
+          select: "name classTeacher",
         },
         {
           path: "stream",
@@ -427,10 +423,29 @@ const populateAssessmentQuestion = (
       "section",
       "sectionCode title questionType marksPerQuestion numberOfQuestions totalMarks order",
     )
-    .populate(
-      "question",
-      "questionText questionType marks negativeMarks difficulty status answerMode subject chapter topic",
-    )
+    .populate({
+      path: "question",
+      select:
+        "questionText questionType marks negativeMarks difficulty status options correctAnswer subject chapter topic answerEditorConfiguration",
+      populate: [
+        {
+          path: "answerEditorConfiguration",
+          select: "name code answerMode configuration isActive",
+        },
+        {
+          path: "subject",
+          select: "name code shortName",
+        },
+        {
+          path: "chapter",
+          select: "name title",
+        },
+        {
+          path: "topic",
+          select: "name title",
+        },
+      ],
+    })
     .populate(
       "questionGroup",
       "title groupType directions sharedContent selectionMode questionCount totalMarks",
@@ -448,11 +463,12 @@ const populateAssessmentQuestion = (
  * @route POST /api/assessment-questions
  */
 
- const createAssessmentQuestion =
-  asyncHandler(async (req, res) => {
+ 
+const createAssessmentQuestion = asyncHandler(
+  async (req, res) => {
     const schoolId = validateUserSchoolAccess(
       req,
-      res,
+      res
     );
 
     const {
@@ -463,61 +479,45 @@ const populateAssessmentQuestion = (
       marks,
       negativeMarks,
       questionGroup,
+      replaceAssessmentQuestionId,
     } = req.body;
 
-    // 1. Validate the assessment.
-    const assessmentData =
-      await validateAssessment(
-        assessment,
-        schoolId,
-      );
-
-    validateAssessmentStatus(
-      assessmentData,
+    // 1. Validate assessment
+    const assessmentData = await validateAssessment(
+      assessment,
+      schoolId
     );
 
-    // 2. Validate the AssessmentSection.
-    // This must query the AssessmentSection model,
-    // not the generic Section model.
+    validateAssessmentStatus(assessmentData);
+
+    // 2. Validate assessment section
     const assessmentSection =
       await validateAssessmentSection(
         section,
         assessmentData._id,
-        schoolId,
+        schoolId
       );
 
-    // 3. Validate the selected Question document.
-    const questionData =
-      await validateQuestion(
-        question,
-        assessmentData,
-      );
-
-    // 4. Verify that the question is compatible
-    // with the selected assessment section.
-    validateQuestionSectionCompatibility(
-      questionData,
-      assessmentSection,
+    // 3. Validate selected question
+    const questionData = await validateQuestion(
+      question,
+      assessmentData
     );
 
-    // 5. Validate order and marks.
-    // validateOrder(order);
+    // 4. Validate question-section compatibility
+    validateQuestionSectionCompatibility(
+      questionData,
+      assessmentSection
+    );
 
+    // 5. Validate marks
     validateMarks(
       marks,
       negativeMarks === undefined
         ? 0
-        : negativeMarks,
+        : negativeMarks
     );
 
-    // 6. Validate the optional question group.
-    await validateQuestionGroup(
-      questionGroup,
-      assessmentData,
-    );
-
-    // 7. The question marks must match the
-    // AssessmentSection configuration.
     if (
       Number(marks) !==
       Number(assessmentSection.marksPerQuestion)
@@ -525,104 +525,212 @@ const populateAssessmentQuestion = (
       res.status(400);
 
       throw new Error(
-        `Question marks must match the section marksPerQuestion (${assessmentSection.marksPerQuestion})`,
+        `Question marks must match the section marksPerQuestion (${assessmentSection.marksPerQuestion})`
       );
     }
 
-    // 8. Check whether this question is already
-    // assigned to the assessment.
-    const existingQuestion =
-      await AssessmentQuestion.findOne({
-        school: schoolId,
-        assessment: assessmentData._id,
-        question: questionData._id,
-      });
+    // 6. Validate question group
+    await validateQuestionGroup(
+      questionGroup,
+      assessmentData
+    );
 
-    if (existingQuestion) {
-      res.status(400);
+    let assessmentQuestion;
+    let action;
 
-      throw new Error(
-        "Question is already assigned to this assessment",
-      );
-    }
+    // --------------------------------------------------
+    // 7. REPLACE EXISTING QUESTION
+    // --------------------------------------------------
 
-    // 9. Prevent duplicate order numbers within
-    // the selected assessment section.
-    const existingOrder =
-  await AssessmentQuestion.findOne({
-    school: schoolId,
-    assessment: assessmentData._id,
-    section: assessmentSection._id,
-    order: Number(order),
-  });
-
-if (existingOrder) {
-  res.status(400);
-
-  throw new Error(
-    "Question order already exists in this assessment section",
-  );
-}
-
-    // 10. Enforce the maximum question count
-    // configured on AssessmentSection.
-    const sectionQuestionCount =
-      await AssessmentQuestion.countDocuments({
-        school: schoolId,
-        assessment: assessmentData._id,
-        section: assessmentSection._id,
-      });
-
-    if (
-      sectionQuestionCount >=
-      assessmentSection.numberOfQuestions
-    ) {
-      res.status(400);
-
-      throw new Error(
-        `This section allows a maximum of ${assessmentSection.numberOfQuestions} questions`,
-      );
-    }
-
-    // 11. Create the assessment-question assignment.
-    // choiceGroup is intentionally omitted.
-    const assessmentQuestion =
-      await AssessmentQuestion.create({
-        school: schoolId,
-
-        assessment:
-          assessmentData._id,
-
-        section:
-          assessmentSection._id,
-
-        question:
-          questionData._id,
-
-        order: Number(order),
-
-        marks: Number(marks),
-
-        negativeMarks:
-          negativeMarks !== undefined
-            ? Number(negativeMarks)
-            : 0,
-
-        questionGroup:
-          questionGroup || undefined,
-      });
-
-    // 12. Populate the created assignment.
-    const result =
-      await populateAssessmentQuestion(
-        AssessmentQuestion.findOne({
-          _id: assessmentQuestion._id,
+    if (replaceAssessmentQuestionId) {
+      const existingAssignment =
+        await AssessmentQuestion.findOne({
+          _id: replaceAssessmentQuestionId,
           school: schoolId,
-        }),
-      );
+          assessment: assessmentData._id,
+          section: assessmentSection._id,
+        });
 
-    res.status(201).json(result);
-  });
+      if (!existingAssignment) {
+        res.status(404);
+
+        throw new Error(
+          "Assessment question not found in the selected section"
+        );
+      }
+
+      // Prevent assigning the same question twice
+      const duplicateQuestion =
+        await AssessmentQuestion.findOne({
+          school: schoolId,
+          assessment: assessmentData._id,
+          question: questionData._id,
+          _id: {
+            $ne: existingAssignment._id,
+          },
+        });
+
+      if (duplicateQuestion) {
+        res.status(400);
+
+        throw new Error(
+          "Question is already assigned to this assessment"
+        );
+      }
+
+      // Preserve existing order during replacement
+      existingAssignment.question = questionData._id;
+
+      existingAssignment.marks = Number(marks);
+
+      existingAssignment.negativeMarks =
+        negativeMarks !== undefined
+          ? Number(negativeMarks)
+          : 0;
+
+      existingAssignment.questionGroup =
+        questionGroup || undefined;
+
+      assessmentQuestion =
+        await existingAssignment.save();
+
+      action = "REPLACED";
+    }
+
+    // --------------------------------------------------
+    // 8. CREATE NEW QUESTION
+    // --------------------------------------------------
+
+    else {
+      if (order === undefined || order === null) {
+        res.status(400);
+
+        throw new Error(
+          "Question order is required"
+        );
+      }
+
+      // Check duplicate question
+      const existingQuestion =
+        await AssessmentQuestion.findOne({
+          school: schoolId,
+          assessment: assessmentData._id,
+          question: questionData._id,
+        });
+
+      if (existingQuestion) {
+        res.status(400);
+
+        throw new Error(
+          "Question is already assigned to this assessment"
+        );
+      }
+
+      // Check duplicate order
+      const existingOrder =
+        await AssessmentQuestion.findOne({
+          school: schoolId,
+          assessment: assessmentData._id,
+          section: assessmentSection._id,
+          order: Number(order),
+        });
+
+      if (existingOrder) {
+        res.status(400);
+
+        throw new Error(
+          "Question order already exists in this assessment section"
+        );
+      }
+
+      // Check maximum question count
+      const sectionQuestionCount =
+        await AssessmentQuestion.countDocuments({
+          school: schoolId,
+          assessment: assessmentData._id,
+          section: assessmentSection._id,
+        });
+
+      if (
+        sectionQuestionCount >=
+        assessmentSection.numberOfQuestions
+      ) {
+        res.status(400);
+
+        throw new Error(
+          `This section allows a maximum of ${assessmentSection.numberOfQuestions} questions`
+        );
+      }
+
+      assessmentQuestion =
+        await AssessmentQuestion.create({
+          school: schoolId,
+          assessment: assessmentData._id,
+          section: assessmentSection._id,
+          question: questionData._id,
+          order: Number(order),
+          marks: Number(marks),
+          negativeMarks:
+            negativeMarks !== undefined
+              ? Number(negativeMarks)
+              : 0,
+          questionGroup:
+            questionGroup || undefined,
+        });
+
+      action = "CREATED";
+    }
+
+    // --------------------------------------------------
+    // 9. Return updated assessment questions
+    // --------------------------------------------------
+
+    const updatedQuestions =
+      await AssessmentQuestion.find({
+        school: schoolId,
+        assessment: assessmentData._id,
+      })
+        .sort({
+          section: 1,
+          order: 1,
+        })
+        .populate({
+          path: "section",
+        })
+        .populate({
+          path: "question",
+        })
+        .populate({
+          path: "questionGroup",
+        });
+
+    // --------------------------------------------------
+    // 10. Return response
+    // --------------------------------------------------
+
+    res.status(
+      action === "CREATED" ? 201 : 200
+    ).json({
+      success: true,
+      message:
+        action === "CREATED"
+          ? "Assessment question created successfully"
+          : "Assessment question replaced successfully",
+
+      action,
+
+      assessment: assessmentData._id,
+
+      assessmentQuestionId:
+        assessmentQuestion._id,
+
+      totalQuestions: updatedQuestions.length,
+
+      questions: updatedQuestions,
+    });
+  }
+);
+
 
 
 /**
@@ -1115,6 +1223,43 @@ const getQuestionsByQuestionType =
     },
   );
 
+
+const getAssessmentQuestionsForConfiguration =
+  asyncHandler(async (req, res) => {
+    const schoolId = validateUserSchoolAccess(
+      req,
+      res
+    );
+
+    const { assessmentId } = req.params;
+
+    // Validate assessment ownership
+    const assessment = await validateAssessment(
+      assessmentId,
+      schoolId
+    );
+
+    // Retrieve all assigned questions
+    // across all assessment sections
+    const assessmentQuestions =
+      await populateAssessmentQuestion(
+        AssessmentQuestion.find({
+          school: schoolId,
+          assessment: assessment._id,
+        }).sort({
+          section: 1,
+          order: 1,
+        })
+      );
+
+    res.status(200).json({
+      assessment: assessment._id,
+      totalQuestions: assessmentQuestions.length,
+      questions: assessmentQuestions,
+    });
+  });
+
+
 /**
  * ======================================================
  * Update Assessment Question
@@ -1277,22 +1422,23 @@ const updateAssessmentQuestion =
        * Duplicate order is scoped by school + assessment.
        */
       const duplicateOrder =
-        await AssessmentQuestion.findOne({
-          _id: {
-            $ne: id,
-          },
-          school: schoolId,
-          assessment:
-            assessment._id,
-          order: newOrder,
-        });
+  await AssessmentQuestion.findOne({
+    _id: {
+      $ne: id,
+    },
+    school: schoolId,
+    assessment: assessment._id,
+    section: newSection,
+    order: Number(newOrder),
+  });
 
-      if (duplicateOrder) {
-        res.status(400);
-        throw new Error(
-          "Question order already exists in this assessment",
-        );
-      }
+if (duplicateOrder) {
+  res.status(400);
+
+  throw new Error(
+    "Question order already exists in this assessment section"
+  );
+}
 
       /**
        * Duplicate question is scoped by school + assessment.
@@ -1461,5 +1607,6 @@ export {
   getQuestionsByChoiceGroup,
   getQuestionsByQuestionType,
   updateAssessmentQuestion,
+  getAssessmentQuestionsForConfiguration,
   deleteAssessmentQuestion,
 };

@@ -13,6 +13,7 @@ import {
   updateResultStatus,
   publishResult,
   withdrawResult,
+  publishAssessmentResults,
   deleteResult,
 } from "../controllers/resultController.js";
 
@@ -129,6 +130,41 @@ router.get(
   protect,
   resolveSchool,
   getResultsByAssessment,
+);
+
+/*
+==========================================================
+PUBLISH ALL RESULTS FOR AN ASSESSMENT
+==========================================================
+
+PUT /assessment/:assessmentId/publish
+
+Access:
+    TEACHER / HM / ADMIN
+
+The controller:
+    - validates the assessment
+    - retrieves all results for the assessment
+    - checks whether all attempts are EVALUATED
+    - if any attempt is not evaluated:
+        - does not publish any results
+        - returns totalAttempts
+        - returns notEvaluatedAttempts
+    - if all attempts are evaluated:
+        - publishes all results
+        - sets publishedAt
+        - sets publishedBy
+
+Publication is an all-or-nothing operation.
+==========================================================
+*/
+
+router.put(
+  "/assessment/:assessmentId/publish",
+  protect,
+  teacherOrHmOrAdmin,
+  resolveSchool,
+  publishAssessmentResults,
 );
 
 /*

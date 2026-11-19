@@ -539,17 +539,24 @@ const validateAssessmentStatusTransition = (
       "SCHEDULED",
       "CANCELLED",
     ],
+
     SCHEDULED: [
+      "DRAFT",
       "SCHEDULED",
       "ACTIVE",
       "CANCELLED",
     ],
+
     ACTIVE: [
+      "DRAFT",
+      "SCHEDULED",
       "ACTIVE",
       "COMPLETED",
       "CANCELLED",
     ],
+
     COMPLETED: ["COMPLETED"],
+
     CANCELLED: ["CANCELLED"],
   };
 

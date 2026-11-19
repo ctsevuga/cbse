@@ -28,6 +28,27 @@ const TeacherAssessmentAttemptsScreen = () => {
   const navigate = useNavigate();
   const [assessmentId, setAssessmentId] = useState("");
 
+const [statusFilter, setStatusFilter] = useState("");
+const [assessmentTypeFilter, setAssessmentTypeFilter] = useState("");
+
+const assessmentStatuses = [
+  { value: "DRAFT", label: "Draft" },
+  { value: "SCHEDULED", label: "Scheduled" },
+  { value: "ACTIVE", label: "Active" },
+  { value: "COMPLETED", label: "Completed" },
+  { value: "CANCELLED", label: "Cancelled" },
+];
+
+const assessmentTypes = [
+  { value: "CHAPTER_TEST", label: "Chapter Test" },
+  { value: "UNIT_TEST", label: "Unit Test" },
+  { value: "MONTHLY_TEST", label: "Monthly Test" },
+  { value: "REVISION_TEST", label: "Revision Test" },
+  { value: "MOCK_EXAM", label: "Mock Exam" },
+  { value: "PRE_BOARD", label: "Pre Board" },
+  { value: "BOARD_PRACTICE", label: "Board Practice" },
+];
+
   // Load assessments assigned to the current teacher.
   const {
     data: assessmentsResponse,
@@ -46,6 +67,29 @@ const TeacherAssessmentAttemptsScreen = () => {
         : Array.isArray(assessmentsResponse?.data)
           ? assessmentsResponse.data
           : [];
+
+          // Filter assessments based on selected status and assessment type.
+const filteredAssessments = assessments.filter((assessment) => {
+  const matchesStatus =
+    !statusFilter || assessment.status === statusFilter;
+
+  const matchesType =
+    !assessmentTypeFilter ||
+    assessment.assessmentType === assessmentTypeFilter;
+
+  return matchesStatus && matchesType;
+});
+
+// Clear the selected assessment whenever filters change.
+const handleStatusFilterChange = (event) => {
+  setStatusFilter(event.target.value);
+  setAssessmentId("");
+};
+
+const handleAssessmentTypeFilterChange = (event) => {
+  setAssessmentTypeFilter(event.target.value);
+  setAssessmentId("");
+};
 
   // Fetch attempts using only the selected assessment ID.
   const {
@@ -260,65 +304,170 @@ const TeacherAssessmentAttemptsScreen = () => {
             </div>
           </div>
 
-          {/* Assessment selector */}
-          <div className="border-b border-white/10 bg-white/5 px-5 py-5 sm:px-8">
-            <label
-              htmlFor="teacher-assessment"
-              className="mb-2 flex items-center gap-2 text-sm font-semibold text-white"
-            >
-              <FileText size={17} />
-              Select Assessment
-            </label>
+          
+{/* Assessment Filters and Selector */}
+<div className="border-b border-white/10 bg-white/5 px-4 py-4 sm:px-6">
 
-            <div className="relative">
-              <select
-                id="teacher-assessment"
-                value={assessmentId}
-                onChange={(event) => setAssessmentId(event.target.value)}
-                disabled={assessmentsLoading || assessmentsError}
-                className="h-12 w-full appearance-none rounded-xl border border-white/30 bg-white px-4 pr-11 text-sm font-medium text-gray-800 outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-200 disabled:bg-gray-100"
-              >
-                <option value="">
-                  {assessmentsLoading
-                    ? "Loading your assessments..."
-                    : assessmentsError
-                      ? "Unable to load assessments"
-                      : assessments.length === 0
-                        ? "No assessments available"
-                        : "Choose an assessment"}
-                </option>
+  {/* Filters */}
+  <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
 
-                {assessments.map((assessment) => (
-                  <option
-                    key={assessment._id}
-                    value={assessment._id}
-                  >
-                    {getAssessmentName(assessment)}
-                  </option>
-                ))}
-              </select>
+    {/* Status Filter */}
+    <div>
+      <label
+        htmlFor="assessment-status-filter"
+        className="mb-1.5 block text-xs font-semibold text-white"
+      >
+        Assessment Status
+      </label>
 
-              <ChevronDown
-                size={18}
-                className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-gray-500"
-              />
-            </div>
+      <div className="relative">
+        <select
+          id="assessment-status-filter"
+          value={statusFilter}
+          onChange={handleStatusFilterChange}
+          disabled={assessmentsLoading || assessmentsError}
+          className="h-10 w-full appearance-none rounded-lg border border-white/30 bg-white px-3 pr-9 text-sm text-gray-800 outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-200"
+        >
+          <option value="">All Statuses</option>
 
-            {assessmentsError && (
-              <div className="mt-3 text-sm text-white">
-                {assessmentsErrorDetails?.data?.message ||
-                  "Unable to load your assessments."}
+          {assessmentStatuses.map((status) => (
+            <option key={status.value} value={status.value}>
+              {status.label}
+            </option>
+          ))}
+        </select>
 
-                <button
-                  type="button"
-                  onClick={refetchAssessments}
-                  className="ml-2 underline"
-                >
-                  Try again
-                </button>
-              </div>
-            )}
-          </div>
+        <ChevronDown
+          size={16}
+          className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-500"
+        />
+      </div>
+    </div>
+
+    {/* Assessment Type Filter */}
+    <div>
+      <label
+        htmlFor="assessment-type-filter"
+        className="mb-1.5 block text-xs font-semibold text-white"
+      >
+        Assessment Type
+      </label>
+
+      <div className="relative">
+        <select
+          id="assessment-type-filter"
+          value={assessmentTypeFilter}
+          onChange={handleAssessmentTypeFilterChange}
+          disabled={assessmentsLoading || assessmentsError}
+          className="h-10 w-full appearance-none rounded-lg border border-white/30 bg-white px-3 pr-9 text-sm text-gray-800 outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-200"
+        >
+          <option value="">All Assessment Types</option>
+
+          {assessmentTypes.map((type) => (
+            <option key={type.value} value={type.value}>
+              {type.label}
+            </option>
+          ))}
+        </select>
+
+        <ChevronDown
+          size={16}
+          className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-500"
+        />
+      </div>
+    </div>
+
+  </div>
+
+  {/* Assessment Selector */}
+  <div>
+    <label
+      htmlFor="teacher-assessment"
+      className="mb-1.5 flex items-center gap-2 text-sm font-semibold text-white"
+    >
+      <FileText size={17} />
+      Select Assessment
+    </label>
+
+    <div className="relative">
+      <select
+        id="teacher-assessment"
+        value={assessmentId}
+        onChange={(event) => setAssessmentId(event.target.value)}
+        disabled={assessmentsLoading || assessmentsError}
+        className="h-11 w-full appearance-none rounded-xl border border-white/30 bg-white px-4 pr-11 text-sm font-medium text-gray-800 outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-200 disabled:bg-gray-100"
+      >
+        <option value="">
+          {assessmentsLoading
+            ? "Loading your assessments..."
+            : assessmentsError
+              ? "Unable to load assessments"
+              : filteredAssessments.length === 0
+                ? "No matching assessments found"
+                : "Choose an assessment"}
+        </option>
+
+        {filteredAssessments.map((assessment) => (
+          <option
+            key={assessment._id}
+            value={assessment._id}
+          >
+            {getAssessmentName(assessment)}
+            {" - "}
+            {assessment.assessmentType?.replace(/_/g, " ")}
+            {" - "}
+            {assessment.status}
+          </option>
+        ))}
+      </select>
+
+      <ChevronDown
+        size={18}
+        className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-gray-500"
+      />
+    </div>
+
+    {/* Filter Information */}
+    <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+
+      <p className="text-xs text-white/70">
+        Showing {filteredAssessments.length} of {assessments.length} assessments
+      </p>
+
+      {(statusFilter || assessmentTypeFilter) && (
+        <button
+          type="button"
+          onClick={() => {
+            setStatusFilter("");
+            setAssessmentTypeFilter("");
+            setAssessmentId("");
+          }}
+          className="flex items-center gap-1 text-xs font-medium text-cyan-200 hover:text-white"
+        >
+          <XCircle size={14} />
+          Clear Filters
+        </button>
+      )}
+
+    </div>
+
+    {assessmentsError && (
+      <div className="mt-3 text-sm text-white">
+        {assessmentsErrorDetails?.data?.message ||
+          "Unable to load your assessments."}
+
+        <button
+          type="button"
+          onClick={refetchAssessments}
+          className="ml-2 underline"
+        >
+          Try again
+        </button>
+      </div>
+    )}
+  </div>
+</div>
+
 
           {/* Submission list */}
           {!assessmentId ? (

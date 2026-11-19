@@ -1,8 +1,13 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 
-import { useCreateAssessmentQuestionMutation } from "../../slices/assessmentQuestionApiSlice";
+import {
+  useCreateAssessmentQuestionMutation,
+  useGetAssessmentQuestionsForConfigurationQuery,
+  useUpdateAssessmentQuestionMutation,
+  useDeleteAssessmentQuestionMutation,
+} from "../../slices/assessmentQuestionApiSlice";
 
 import { useGetMyAssessmentsQuery } from "../../slices/assessmentApiSlice";
 
@@ -144,7 +149,6 @@ const CreateAssessmentQuestionScreen = () => {
   const [negativeMarks, setNegativeMarks] = useState("0");
   const [questionGroup, setQuestionGroup] = useState("");
 
-  const [subject, setSubject] = useState("");
   const [chapter, setChapter] = useState("");
   const [topic, setTopic] = useState("");
 
@@ -155,8 +159,25 @@ const CreateAssessmentQuestionScreen = () => {
   const [questionMarks, setQuestionMarks] = useState("");
   const [page, setPage] = useState(1);
 
-  const [createAssessmentQuestion, { isLoading: isAssigning }] =
-    useCreateAssessmentQuestionMutation();
+  const [
+    createAssessmentQuestion,
+    { isLoading: isCreating },
+  ] = useCreateAssessmentQuestionMutation();
+
+  const [
+    updateAssessmentQuestion,
+    { isLoading: isUpdating },
+  ] = useUpdateAssessmentQuestionMutation();
+
+  const [
+    deleteAssessmentQuestion,
+    { isLoading: isDeleting },
+  ] = useDeleteAssessmentQuestionMutation();
+
+  const isAssigning = isCreating || isUpdating || isDeleting;
+
+  // Prevent refetches from overwriting the teacher's unsaved selection.
+  const initializedSectionRef = useRef("");
 
   const {
   data: assessmentsData,
@@ -169,6 +190,17 @@ const CreateAssessmentQuestionScreen = () => {
     isLoading: sectionsLoading,
     isError: sectionsError,
   } = useGetAssessmentSectionsQuery(assessment ? { assessment } : undefined, {
+    skip: !assessment,
+  });
+
+  // Load all existing assessment-question assignments across every section.
+  const {
+    currentData: configurationQuestionsData,
+    isLoading: configurationQuestionsLoading,
+    isFetching: configurationQuestionsFetching,
+    isError: configurationQuestionsError,
+    refetch: refetchConfigurationQuestions,
+  } = useGetAssessmentQuestionsForConfigurationQuery(assessment, {
     skip: !assessment,
   });
 
@@ -185,6 +217,40 @@ const CreateAssessmentQuestionScreen = () => {
     useGetSubjectsQuery();
 
   const subjects = getArray(subjectsData, ["subjects"]);
+
+  const assessments = getArray(assessmentsData, ["assessments"]).filter(
+    (item) => String(item?.status || "").toUpperCase() === "DRAFT",
+  );
+
+  const selectedAssessment = assessments.find(
+    (item) => item._id === assessment,
+  );
+
+  // The subject is inherited from the selected assessment and is read-only.
+  // Support either a populated subject object or a subject ObjectId string.
+  const assessmentSubject =
+    selectedAssessment?.subject ||
+    selectedAssessment?.subjectId ||
+    selectedAssessment?.subject?._id ||
+    "";
+
+  const subject =
+    typeof assessmentSubject === "string"
+      ? assessmentSubject
+      : assessmentSubject?._id || "";
+
+  const subjectFromList = subjects.find((item) => item._id === subject);
+
+  const subjectName =
+    (typeof assessmentSubject === "object"
+      ? assessmentSubject?.name ||
+        assessmentSubject?.title ||
+        assessmentSubject?.subjectName
+      : "") ||
+    subjectFromList?.name ||
+    subjectFromList?.title ||
+    subjectFromList?.subjectName ||
+    (subject ? "Loading subject..." : "No subject assigned");
 
   // Load chapters belonging to the selected subject.
   const { data: chaptersData, isLoading: chaptersLoading } =
@@ -217,11 +283,52 @@ const CreateAssessmentQuestionScreen = () => {
     },
   );
 
-  const assessments = getArray(assessmentsData, ["assessments"]).filter(
-    (item) => String(item?.status || "").toUpperCase() === "DRAFT",
+  const sections = getArray(sectionsData, ["sections"]);
+
+  const allAssignedQuestions = getArray(
+    configurationQuestionsData,
+    ["questions"]
   );
 
-  const sections = getArray(sectionsData, ["sections"]);
+  const assignedQuestionsForSection = useMemo(
+    () =>
+      allAssignedQuestions.filter((item) => {
+        const assignedSectionId =
+          typeof item?.section === "object"
+            ? item.section?._id
+            : item?.section;
+
+        return String(assignedSectionId || "") === String(section);
+      }),
+    [allAssignedQuestions, section]
+  );
+
+  const assignedQuestionIdsForOtherSections = useMemo(
+    () =>
+      new Set(
+        allAssignedQuestions
+          .filter((item) => {
+            const assignedSectionId =
+              typeof item?.section === "object"
+                ? item.section?._id
+                : item?.section;
+
+            return (
+              String(assignedSectionId || "") !== String(section)
+            );
+          })
+          .map((item) => {
+            const assignedQuestion =
+              typeof item?.question === "object"
+                ? item.question?._id
+                : item?.question;
+
+            return String(assignedQuestion || "");
+          })
+          .filter(Boolean)
+      ),
+    [allAssignedQuestions, section]
+  );
 
   const pagination = useMemo(
     () => getPaginatedQuestions(questionsData),
@@ -245,6 +352,7 @@ const CreateAssessmentQuestionScreen = () => {
   useEffect(() => {
     setSection("");
     setSelectedQuestions([]);
+    initializedSectionRef.current = "";
     setMarks("");
     setNegativeMarks("0");
     setQuestionGroup("");
@@ -263,24 +371,51 @@ const CreateAssessmentQuestionScreen = () => {
     }
   }, [sections, section]);
 
-  // Initialize marks and question type from the selected section.
+  // Initialize section settings when the section changes.
   useEffect(() => {
     if (!selectedSection) return;
 
     setMarks(String(selectedSection.marksPerQuestion ?? ""));
-    setSelectedQuestions([]);
     setQuestionType(selectedSection.questionType || "");
     setQuestionMarks("");
     setSearchInput("");
     setSearch("");
     setPage(1);
-    setSubject("");
     setChapter("");
     setTopic("");
   }, [
     section,
     selectedSection?.marksPerQuestion,
     selectedSection?.questionType,
+  ]);
+
+  // Initialize selected question IDs from persisted assignments.
+  // The ref ensures a background refetch does not overwrite unsaved changes.
+  useEffect(() => {
+    if (!assessment || !section || !configurationQuestionsData) return;
+
+    const sectionKey = `${assessment}:${section}`;
+
+    if (initializedSectionRef.current === sectionKey) return;
+
+    const existingQuestionIds = assignedQuestionsForSection
+      .map((item) => {
+        const assignedQuestion =
+          typeof item?.question === "object"
+            ? item.question?._id
+            : item?.question;
+
+        return String(assignedQuestion || "");
+      })
+      .filter(Boolean);
+
+    setSelectedQuestions(existingQuestionIds);
+    initializedSectionRef.current = sectionKey;
+  }, [
+    assessment,
+    section,
+    configurationQuestionsData,
+    assignedQuestionsForSection,
   ]);
 
   // Restart pagination whenever filters change.
@@ -316,21 +451,31 @@ const CreateAssessmentQuestionScreen = () => {
       return;
     }
 
-    if (requiredCount < 1 || selectedQuestions.length !== requiredCount) {
+    if (
+      requiredCount < 1 ||
+      selectedQuestions.length !== requiredCount
+    ) {
       toast.error(
-        `Select exactly ${requiredCount} questions. You selected ${selectedQuestions.length}.`,
+        `Select exactly ${requiredCount} questions. You selected ${selectedQuestions.length}.`
       );
       return;
     }
 
-    if (marks === "" || !Number.isFinite(Number(marks)) || Number(marks) < 0) {
+    if (
+      marks === "" ||
+      !Number.isFinite(Number(marks)) ||
+      Number(marks) < 0
+    ) {
       toast.error("Please enter valid question marks.");
       return;
     }
 
-    if (Number(marks) !== Number(selectedSection.marksPerQuestion)) {
+    if (
+      Number(marks) !==
+      Number(selectedSection.marksPerQuestion)
+    ) {
       toast.error(
-        `Marks must match the section requirement (${selectedSection.marksPerQuestion}).`,
+        `Marks must match the section requirement (${selectedSection.marksPerQuestion}).`
       );
       return;
     }
@@ -344,75 +489,205 @@ const CreateAssessmentQuestionScreen = () => {
       return;
     }
 
+    if (configurationQuestionsLoading || configurationQuestionsFetching) {
+      toast.info("Please wait while assigned questions are loading.");
+      return;
+    }
+
+    if (configurationQuestionsError) {
+      toast.error(
+        "Unable to load existing assessment questions. Please refresh and try again."
+      );
+      return;
+    }
+
+    const existingAssignments = assignedQuestionsForSection;
+
+    const existingQuestionIds = new Set(
+      existingAssignments.map((item) => {
+        const assignedQuestion =
+          typeof item?.question === "object"
+            ? item.question?._id
+            : item?.question;
+
+        return String(assignedQuestion || "");
+      })
+    );
+
+    const selectedSet = new Set(
+      selectedQuestions.map((id) => String(id))
+    );
+
+    const assignmentsToReplaceOrDelete =
+      existingAssignments.filter((item) => {
+        const assignedQuestion =
+          typeof item?.question === "object"
+            ? item.question?._id
+            : item?.question;
+
+        return !selectedSet.has(String(assignedQuestion || ""));
+      });
+
+    const questionsToAdd = selectedQuestions.filter(
+      (questionId) =>
+        !existingQuestionIds.has(String(questionId))
+    );
+
+    const questionsAssignedElsewhere = questionsToAdd.filter(
+      (questionId) =>
+        assignedQuestionIdsForOtherSections.has(String(questionId))
+    );
+
+    if (questionsAssignedElsewhere.length > 0) {
+      toast.error(
+        "One or more selected questions are already assigned to another assessment section."
+      );
+      return;
+    }
+
     const confirmed = window.confirm(
-      `Assign ${selectedQuestions.length} questions to ${getSectionName(selectedSection)}?`,
+      `Save ${selectedQuestions.length} questions for ${getSectionName(selectedSection)}? Existing questions that were deselected will be replaced where possible.`
     );
 
     if (!confirmed) return;
 
-    let succeeded = 0;
+    let replaced = 0;
+    let created = 0;
+    let deleted = 0;
     const failures = [];
 
-    for (let index = 0; index < selectedQuestions.length; index++) {
-      const questionId = selectedQuestions[index];
+    // Pair deselected assignments with newly selected questions.
+    // This updates the existing assignment and preserves its order and ID.
+    const replacementCount = Math.min(
+      assignmentsToReplaceOrDelete.length,
+      questionsToAdd.length
+    );
+
+    for (let index = 0; index < replacementCount; index++) {
+      const assignment = assignmentsToReplaceOrDelete[index];
+      const replacementQuestionId = questionsToAdd[index];
+
+      try {
+        await updateAssessmentQuestion({
+          assessmentQuestionId: assignment._id,
+          question: replacementQuestionId,
+          marks: Number(marks),
+          negativeMarks: Number(negativeMarks),
+          ...(questionGroup.trim()
+            ? { questionGroup: questionGroup.trim() }
+            : {}),
+        }).unwrap();
+
+        replaced++;
+      } catch (err) {
+        failures.push({
+          operation: "replace",
+          assignmentId: assignment._id,
+          questionId: replacementQuestionId,
+          message:
+            err?.data?.message ||
+            err?.error ||
+            "Unable to replace question",
+        });
+      }
+    }
+
+    // Delete assignments that have no replacement.
+    for (
+      let index = replacementCount;
+      index < assignmentsToReplaceOrDelete.length;
+      index++
+    ) {
+      const assignment = assignmentsToReplaceOrDelete[index];
+
+      try {
+        await deleteAssessmentQuestion(assignment._id).unwrap();
+        deleted++;
+      } catch (err) {
+        failures.push({
+          operation: "delete",
+          assignmentId: assignment._id,
+          message:
+            err?.data?.message ||
+            err?.error ||
+            "Unable to remove question",
+        });
+      }
+    }
+
+    // Create newly selected questions that do not replace an old assignment.
+    const nextOrder =
+      existingAssignments.reduce(
+        (max, item) =>
+          Math.max(max, Number(item.order) || 0),
+        0
+      );
+
+    for (
+      let index = replacementCount;
+      index < questionsToAdd.length;
+      index++
+    ) {
+      const questionId = questionsToAdd[index];
 
       try {
         await createAssessmentQuestion({
           assessment,
           section,
           question: questionId,
-
-          // Keep order because the current schema requires it.
-          // This does not perform order-uniqueness verification.
-          order: index + 1,
-
+          order: nextOrder + (index - replacementCount) + 1,
           marks: Number(marks),
           negativeMarks: Number(negativeMarks),
-
           ...(questionGroup.trim()
             ? { questionGroup: questionGroup.trim() }
             : {}),
         }).unwrap();
 
-        succeeded++;
+        created++;
       } catch (err) {
         failures.push({
+          operation: "create",
           questionId,
-          message: err?.data?.message || err?.error || "Unknown error",
+          message:
+            err?.data?.message ||
+            err?.error ||
+            "Unable to assign question",
         });
       }
     }
 
-    if (failures.length === 0) {
-      toast.success(`Successfully assigned all ${succeeded} questions.`);
+    try {
+      await refetchConfigurationQuestions();
+    } catch (err) {
+      console.error(
+        "Unable to refresh assessment questions:",
+        err
+      );
+    }
 
-      // Keep the teacher on this screen and allow assigning questions
-      // to another section of the same assessment.
-      setSection("");
-      setSelectedQuestions([]);
-      setMarks("");
-      setNegativeMarks("0");
-      setQuestionGroup("");
-      setSearchInput("");
-      setSearch("");
-      setQuestionType("");
-      setQuestionMarks("");
-      setSubject("");
-      setChapter("");
-      setTopic("");
-      setPage(1);
+    if (failures.length === 0) {
+      const summary = [
+        replaced ? `${replaced} replaced` : null,
+        created ? `${created} added` : null,
+        deleted ? `${deleted} removed` : null,
+      ]
+        .filter(Boolean)
+        .join(", ");
+
+      toast.success(
+        summary
+          ? `Assessment questions saved successfully: ${summary}.`
+          : "Assessment questions are already up to date."
+      );
+
       return;
     }
 
-    if (succeeded > 0) {
-      toast.warning(
-        `${succeeded} questions assigned; ${failures.length} failed. Check the console for details.`,
-      );
-    } else {
-      toast.error(failures[0]?.message || "Unable to assign questions.");
-    }
+    console.error("Assessment question update failures:", failures);
 
-    console.error("Question assignment failures:", failures);
+    toast.error(
+      `${replaced + created + deleted} operation(s) completed; ${failures.length} failed. Please refresh and review the assigned questions.`
+    );
   };
 
   const isFetchingQuestions = questionsLoading || questionsFetching;
@@ -495,48 +770,40 @@ const CreateAssessmentQuestionScreen = () => {
             </div>
           </div>
 
-          {selectedSection && (
-            <div className="rounded-xl border border-indigo-300/30 bg-indigo-500/20 p-4">
-              <h3 className="font-semibold text-white">
-                {getSectionName(selectedSection)}
-              </h3>
-
-              <div className="mt-2 grid grid-cols-2 gap-3 text-sm text-white/90 sm:grid-cols-4">
-                <p>Type: {selectedSection.questionType}</p>
-
-                <p>Required: {requiredCount}</p>
-
-                <p>Marks/question: {selectedSection.marksPerQuestion}</p>
-
-                <p>Total marks: {selectedSection.totalMarks}</p>
-              </div>
-
-              <p className="mt-3 text-lg font-bold text-white">
-                Selected: {selectedQuestions.length}/{requiredCount}
-              </p>
-            </div>
-          )}
-
-          {section && selectedSection && (
-            <div className="space-y-5 rounded-2xl bg-white p-5 shadow-xl sm:p-6">
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          {assessment && (
+            <div className="rounded-2xl border border-white/50 bg-white p-4 shadow-lg sm:p-5">
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                 <div>
-                  <h3 className="text-xl font-bold text-gray-900">
-                    Select Questions
-                  </h3>
-
-                  <p className="mt-1 text-sm text-gray-600">
-                    Selected questions remain selected when you search or change
-                    pages.
-                  </p>
+                  <h3 className="text-base font-bold text-gray-900">Question Filters</h3>
+                  <p className="text-xs text-gray-600">Choose filters to narrow the question bank. Select an assessment section to view and assign questions.</p>
+                </div>
+              </div>
+              <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
+                <div className="mb-3 flex flex-wrap items-center justify-end gap-2">
+                  <div className="flex items-center gap-3">
+                    <span className="hidden text-xs text-gray-500 sm:inline">
+                      Filter the question bank before selecting questions
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSearchInput("");
+                        setSearch("");
+                        setQuestionType(selectedSection?.questionType || "");
+                        setQuestionMarks("");
+                        setChapter("");
+                        setTopic("");
+                        setPage(1);
+                      }}
+                      disabled={isAssigning}
+                      className="text-xs font-semibold text-indigo-700 hover:text-indigo-900"
+                    >
+                      Reset filters
+                    </button>
+                  </div>
                 </div>
 
-                <span className="w-fit rounded-full bg-indigo-100 px-4 py-2 text-sm font-bold text-indigo-800">
-                  {selectedQuestions.length}/{requiredCount} selected
-                </span>
-              </div>
-
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
                 {/* Subject */}
 
                 <div>
@@ -544,25 +811,13 @@ const CreateAssessmentQuestionScreen = () => {
                     Subject
                   </label>
 
-                  <select
-                    value={subject}
-                    onChange={(e) => {
-                      setSubject(e.target.value);
-                      setChapter("");
-                      setTopic("");
-                      setPage(1);
-                    }}
-                    disabled={isAssigning || subjectsLoading}
-                    className="h-11 w-full rounded-lg border border-gray-300 bg-white px-3 text-gray-900"
-                  >
-                    <option value="">All subjects</option>
-
-                    {subjects.map((item) => (
-                      <option key={item._id} value={item._id}>
-                        {item.name || item.title || item.subjectName}
-                      </option>
-                    ))}
-                  </select>
+                  <input
+                    type="text"
+                    value={subjectName || "No subject assigned"}
+                    readOnly
+                    disabled
+                    className="h-11 w-full cursor-not-allowed rounded-lg border border-gray-300 bg-gray-100 px-3 text-gray-700"
+                  />
                 </div>
 
                 <div>
@@ -655,28 +910,163 @@ const CreateAssessmentQuestionScreen = () => {
                   />
                 </div>
               </div>
-
-              <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-gray-600">
-                <p>{totalQuestions} matching question(s)</p>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSearchInput("");
-                    setSearch("");
-                    setQuestionType(selectedSection.questionType || "");
-                    setQuestionMarks("");
-                    setSubject("");
-                    setChapter("");
-                    setTopic("");
-                    setPage(1);
-                  }}
-                  disabled={isAssigning}
-                  className="font-semibold text-indigo-700 hover:text-indigo-900"
-                >
-                  Reset filters
-                </button>
               </div>
+            </div>
+          )}
+
+          {selectedSection && (
+            <div className="rounded-xl border border-indigo-300/30 bg-indigo-500/20 p-4">
+              <h3 className="font-semibold text-white">
+                {getSectionName(selectedSection)}
+              </h3>
+
+              <div className="mt-2 grid grid-cols-2 gap-3 text-sm text-white/90 sm:grid-cols-4">
+                <p>Type: {selectedSection.questionType}</p>
+
+                <p>Required: {requiredCount}</p>
+
+                <p>Marks/question: {selectedSection.marksPerQuestion}</p>
+
+                <p>Total marks: {selectedSection.totalMarks}</p>
+              </div>
+
+              <p className="mt-3 text-lg font-bold text-white">
+                Selected: {selectedQuestions.length}/{requiredCount}
+              </p>
+            </div>
+          )}
+
+          {section && selectedSection && (
+            <div className="space-y-5 rounded-2xl bg-white p-5 shadow-xl sm:p-6">
+              {/* Previously assigned questions for this section */}
+              <div className="rounded-xl border border-indigo-200 bg-indigo-50/70 p-3">
+                <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <h3 className="font-semibold text-gray-900">
+                      Currently Assigned Questions
+                    </h3>
+                    <p className="text-xs text-gray-600">
+                      Uncheck a question to replace it. Changes are saved when you submit.
+                    </p>
+                  </div>
+                  <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-indigo-800">
+                    {assignedQuestionsForSection.filter((item) => {
+                      const assignedQuestion =
+                        typeof item?.question === "object"
+                          ? item.question?._id
+                          : item?.question;
+                      return selectedQuestionSet.has(
+                        String(assignedQuestion || "")
+                      );
+                    }).length} / {requiredCount} retained
+                  </span>
+                </div>
+
+                {configurationQuestionsLoading ? (
+                  <p className="py-3 text-sm text-gray-600">
+                    Loading previously assigned questions...
+                  </p>
+                ) : configurationQuestionsError ? (
+                  <p className="py-3 text-sm text-red-700">
+                    Unable to load previously assigned questions.
+                  </p>
+                ) : assignedQuestionsForSection.length === 0 ? (
+                  <p className="py-3 text-sm text-gray-600">
+                    No questions have been assigned to this section yet.
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {assignedQuestionsForSection.map((assignment) => {
+                      const assignedQuestion =
+                        typeof assignment?.question === "object"
+                          ? assignment.question
+                          : null;
+
+                      const assignedQuestionId =
+                        assignedQuestion?._id ||
+                        assignment?.question;
+
+                      const questionId = String(
+                        assignedQuestionId || ""
+                      );
+
+                      const isSelected =
+                        selectedQuestionSet.has(questionId);
+
+                      return (
+                        <div
+                          key={assignment._id}
+                          className="flex items-start gap-2 rounded-lg border border-indigo-100 bg-white p-2"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            disabled={isAssigning || !assignedQuestionId}
+                            onChange={() =>
+                              toggleQuestion(questionId)
+                            }
+                            className="mt-1 h-4 w-4 shrink-0 accent-indigo-600"
+                          />
+
+                          <div className="min-w-0 flex-1">
+                            <div className="flex flex-wrap items-center gap-2 text-xs">
+                              <span className="font-semibold text-gray-800">
+                                Order {assignment.order}
+                              </span>
+                              <span className="text-gray-500">
+                                {assignment.marks} mark(s)
+                              </span>
+                              <span
+                                className={
+                                  isSelected
+                                    ? "font-semibold text-emerald-700"
+                                    : "font-semibold text-orange-700"
+                                }
+                              >
+                                {isSelected
+                                  ? "Will remain assigned"
+                                  : "Marked for replacement"}
+                              </span>
+                            </div>
+
+                            {assignedQuestion ? (
+                              <div className="mt-1 text-sm text-gray-700">
+                                <TeacherQuestionPreview
+                                  question={assignedQuestion}
+                                  compact
+                                />
+                              </div>
+                            ) : (
+                              <p className="mt-1 text-xs text-gray-600">
+                                Question details are unavailable for this assignment.
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900">
+                    Select Questions
+                  </h3>
+
+                  <p className="mt-1 text-sm text-gray-600">
+                    Selected questions remain selected when you search or change
+                    pages.
+                  </p>
+                </div>
+
+                <span className="w-fit rounded-full bg-indigo-100 px-4 py-2 text-sm font-bold text-indigo-800">
+                  {selectedQuestions.length}/{requiredCount} selected
+                </span>
+              </div>
+
+
 
               {questionsError ? (
                 <div className="rounded-lg bg-red-50 p-4 text-red-700">
@@ -697,9 +1087,15 @@ const CreateAssessmentQuestionScreen = () => {
     const questionId = item._id;
     const isSelected = selectedQuestionSet.has(questionId);
 
+    const isAssignedToAnotherSection =
+      assignedQuestionIdsForOtherSections.has(
+        String(questionId)
+      );
+
     const isDisabled =
-      !isSelected &&
-      selectedQuestions.length >= requiredCount;
+      (!isSelected &&
+        selectedQuestions.length >= requiredCount) ||
+      isAssignedToAnotherSection;
 
     return (
       <div
@@ -741,6 +1137,12 @@ const CreateAssessmentQuestionScreen = () => {
               {isSelected && (
                 <span className="text-xs font-semibold text-indigo-700">
                   Selected
+                </span>
+              )}
+
+              {isAssignedToAnotherSection && (
+                <span className="rounded bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-800">
+                  Assigned to another section
                 </span>
               )}
 
@@ -914,13 +1316,15 @@ const CreateAssessmentQuestionScreen = () => {
                 !section ||
                 requiredCount < 1 ||
                 selectedQuestions.length !== requiredCount ||
-                isFetchingQuestions
+                isFetchingQuestions ||
+                configurationQuestionsLoading ||
+                configurationQuestionsFetching
               }
               className="h-12 flex-1 rounded-xl bg-gradient-to-r from-cyan-500 via-sky-600 to-blue-700 font-semibold text-white disabled:opacity-50"
             >
               {isAssigning
-                ? "Assigning Questions..."
-                : `Assign ${selectedQuestions.length} Question(s)`}
+                ? "Saving Questions..."
+                : `Save ${selectedQuestions.length} Question(s)`}
             </button>
           </div>
         </form>

@@ -114,6 +114,72 @@ export const resultApiSlice = apiSlice.injectEndpoints({
     /results/assessment/:assessmentId/student/:studentId
     */
 
+
+/*
+==========================================================
+PUBLISH ALL RESULTS FOR AN ASSESSMENT
+==========================================================
+
+PUT /results/assessment/:assessmentId/publish
+
+Parameters:
+    assessmentId
+
+Backend:
+    1. Finds all results for the assessment.
+    2. Checks whether all results are EVALUATED.
+    3. If any result is not evaluated:
+       - Returns totalAttempts.
+       - Returns notEvaluatedAttempts.
+       - Does not publish any results.
+    4. If all are evaluated:
+       - Publishes all results.
+       - Sets publishedAt.
+       - Sets publishedBy.
+
+Success response:
+{
+  success: true,
+  message: "Assessment results published successfully.",
+  totalAttempts: 45,
+  publishedAttempts: 45
+}
+
+Failure response:
+{
+  success: false,
+  message: "Results cannot be published...",
+  totalAttempts: 45,
+  notEvaluatedAttempts: 8,
+  evaluatedAttempts: 37
+}
+*/
+
+publishAssessmentResults: builder.mutation({
+  query: (assessmentId) => ({
+    url: `${RESULT_URL}/assessment/${assessmentId}/publish`,
+    method: "PUT",
+  }),
+
+  invalidatesTags: (
+    result,
+    error,
+    assessmentId,
+  ) => [
+    {
+      type: "Result",
+      id: "LIST",
+    },
+    {
+      type: "Result",
+      id: `ASSESSMENT-${assessmentId}`,
+    },
+    "Result",
+    "StudentAttempt",
+  ],
+}),
+
+
     getResultByAssessmentAndStudent: builder.query({
       query: ({
         assessmentId,
@@ -527,6 +593,8 @@ export const {
   useUpdateResultMutation,
 
   usePublishResultMutation,
+
+  usePublishAssessmentResultsMutation, // NEW
 
   useWithdrawResultMutation,
 

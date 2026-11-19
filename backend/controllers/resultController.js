@@ -1749,6 +1749,199 @@ export const withdrawResult =
     res.json(populatedResult);
   });
 
+ 
+export const publishAssessmentResults = async (req, res) => {
+  const { assessmentId } = req.params;
+
+  const schoolId =
+    req.user?.school?._id || req.user?.school;
+
+  const publishedBy = req.user?._id;
+
+  if (!mongoose.Types.ObjectId.isValid(assessmentId)) {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid assessment ID",
+    });
+  }
+
+  if (!schoolId || !publishedBy) {
+    return res.status(403).json({
+      success: false,
+      message: "User school information is missing",
+    });
+  }
+
+  const session = await mongoose.startSession();
+
+  try {
+    let responseData;
+
+    await session.withTransaction(async () => {
+
+      // --------------------------------------------------
+      // 1. Verify assessment belongs to user's school
+      // --------------------------------------------------
+
+      const assessment = await Assessment.findOne({
+        _id: assessmentId,
+        school: schoolId,
+      }).session(session);
+
+      if (!assessment) {
+        const error = new Error(
+          "Assessment not found or unauthorized"
+        );
+        error.statusCode = 404;
+        throw error;
+      }
+
+      // --------------------------------------------------
+      // 2. Find all results for this assessment
+      // --------------------------------------------------
+
+      const results = await Result.find({
+        assessment: assessmentId,
+      }).session(session);
+
+      const totalAttempts = results.length;
+
+      if (totalAttempts === 0) {
+        const error = new Error(
+          "No student attempts found for this assessment"
+        );
+        error.statusCode = 400;
+        throw error;
+      }
+
+      // --------------------------------------------------
+      // 3. Count attempts by status
+      // --------------------------------------------------
+
+      const publishedAttempts = results.filter(
+        (result) => result.status === "PUBLISHED"
+      ).length;
+
+      const evaluatedAttempts = results.filter(
+        (result) => result.status === "EVALUATED"
+      ).length;
+
+      const notEvaluatedAttempts =
+        totalAttempts -
+        publishedAttempts -
+        evaluatedAttempts;
+
+      // --------------------------------------------------
+      // 4. Check whether all attempts are already published
+      // --------------------------------------------------
+
+      if (publishedAttempts === totalAttempts) {
+        responseData = {
+          success: false,
+          statusCode: 409,
+          message: "Already Published.",
+          totalAttempts,
+          publishedAttempts,
+        };
+
+        return;
+      }
+
+      // --------------------------------------------------
+      // 5. Reject if any attempt is not EVALUATED or PUBLISHED
+      // --------------------------------------------------
+
+      if (notEvaluatedAttempts > 0) {
+        responseData = {
+          success: false,
+          statusCode: 409,
+          message:
+            "Results cannot be published. Some student attempts are not yet evaluated.",
+
+          totalAttempts,
+          publishedAttempts,
+          evaluatedAttempts,
+          notEvaluatedAttempts,
+        };
+
+        return;
+      }
+
+      // --------------------------------------------------
+      // 6. Publish only EVALUATED results
+      // --------------------------------------------------
+
+      const updateResult = await Result.updateMany(
+        {
+          assessment: assessmentId,
+          status: "EVALUATED",
+        },
+        {
+          $set: {
+            status: "PUBLISHED",
+            publishedAt: new Date(),
+            publishedBy,
+          },
+        },
+        {
+          session,
+        }
+      );
+
+      // --------------------------------------------------
+      // 7. Prepare success response
+      // --------------------------------------------------
+
+      responseData = {
+        success: true,
+        message: "Assessment results published successfully.",
+
+        totalAttempts,
+
+        // Newly published in this operation
+        publishedAttempts: updateResult.modifiedCount,
+
+        // Previously published attempts
+        alreadyPublishedAttempts: publishedAttempts,
+
+        // Total published after this operation
+        totalPublishedAttempts:
+          publishedAttempts + updateResult.modifiedCount,
+      };
+    });
+
+    // ----------------------------------------------------
+    // 8. Send response
+    // ----------------------------------------------------
+
+    if (!responseData.success) {
+      return res.status(responseData.statusCode).json(
+        responseData
+      );
+    }
+
+    return res.status(200).json(responseData);
+
+  } catch (error) {
+    console.error(
+      "Publish Assessment Results Error:",
+      error
+    );
+
+    return res.status(error.statusCode || 500).json({
+      success: false,
+      message:
+        error.message ||
+        "Failed to publish assessment results.",
+    });
+
+  } finally {
+    await session.endSession();
+  }
+};
+
+
+
 /*
  * ============================================================
  * DELETE RESULT

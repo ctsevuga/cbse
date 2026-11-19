@@ -1,5 +1,6 @@
 import { useNavigate, useParams } from "react-router-dom";
 import { useGetAssessmentQuestionDetailsQuery } from "../../slices/assessmentQuestionApiSlice";
+import TeacherQuestionPreview from "../../components/questions/TeacherQuestionPreview";
 
 const AssessmentQuestionDetailsScreen = () => {
   const { id } = useParams();
@@ -22,29 +23,14 @@ const AssessmentQuestionDetailsScreen = () => {
       return value;
     }
 
-    return (
-      value.name ||
-      value.title ||
-      value.code ||
-      value.text ||
-      fallback
-    );
+    return value.name || value.title || value.code || value.text || fallback;
   };
 
-  const assessmentName = getName(
-    assessmentQuestion?.assessment,
-    "Assessment",
-  );
+  const assessmentName = getName(assessmentQuestion?.assessment, "Assessment");
 
-  const sectionName = getName(
-    assessmentQuestion?.section,
-    "Section",
-  );
+  const sectionName = getName(assessmentQuestion?.section, "Section");
 
-  const questionName = getName(
-    assessmentQuestion?.question,
-    "Question",
-  );
+  const questionName = getName(assessmentQuestion?.question, "Question");
 
   const questionGroupName = getName(
     assessmentQuestion?.questionGroup,
@@ -70,13 +56,10 @@ const AssessmentQuestionDetailsScreen = () => {
         <div className="w-full max-w-md rounded-3xl border border-white/20 bg-white/10 p-8 text-center shadow-2xl backdrop-blur-xl">
           <div className="mx-auto mb-5 h-12 w-12 animate-spin rounded-full border-4 border-white/20 border-t-cyan-400" />
 
-          <h2 className="text-xl font-bold text-white">
-            Loading Question
-          </h2>
+          <h2 className="text-xl font-bold text-white">Loading Question</h2>
 
           <p className="mt-2 text-sm text-white/70">
-            Please wait while the assessment question details
-            are being loaded.
+            Please wait while the assessment question details are being loaded.
           </p>
         </div>
       </div>
@@ -91,9 +74,7 @@ const AssessmentQuestionDetailsScreen = () => {
             !
           </div>
 
-          <h2 className="text-2xl font-bold text-white">
-            Question Not Found
-          </h2>
+          <h2 className="text-2xl font-bold text-white">Question Not Found</h2>
 
           <p className="mt-2 text-sm leading-6 text-white/70">
             {error?.data?.message ||
@@ -112,9 +93,7 @@ const AssessmentQuestionDetailsScreen = () => {
 
             <button
               type="button"
-              onClick={() =>
-                navigate("/assessment-questions")
-              }
+              onClick={() => navigate("/assessment-questions")}
               className="flex-1 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-700 px-5 py-3 font-semibold text-white shadow-lg transition hover:from-indigo-600 hover:to-purple-600"
             >
               Back to Questions
@@ -125,355 +104,266 @@ const AssessmentQuestionDetailsScreen = () => {
     );
   }
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500 px-4 py-6 sm:px-6 lg:px-8">
-      <div className="mx-auto w-full max-w-6xl">
-        <div className="overflow-hidden rounded-3xl border border-white/20 bg-white/10 shadow-2xl backdrop-blur-xl">
-          <div className="border-b border-white/10 px-5 py-6 sm:px-8">
-            <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-              <div>
-                <button
-                  type="button"
-                  onClick={() =>
-                    navigate("/assessment-questions")
-                  }
-                  className="mb-4 inline-flex items-center gap-2 text-sm font-medium text-indigo-100 transition hover:text-white"
-                >
-                  <span className="text-lg">←</span>
-                  Back to Assessment Questions
-                </button>
+ 
+return (
+  <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500 px-2 py-3 sm:px-4">
+    <div className="mx-auto w-full max-w-7xl">
+      <div className="overflow-hidden rounded-2xl border border-white/20 bg-white/10 shadow-xl backdrop-blur-xl">
 
-                <div className="mb-2 inline-flex items-center rounded-full border border-cyan-300/20 bg-cyan-400/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-cyan-100">
-                  Question Details
-                </div>
+        {/* Compact Header */}
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 px-3 py-3 sm:px-4">
+          <div className="min-w-0">
+            <button
+              type="button"
+              onClick={() => navigate("/assessment-questions")}
+              className="mb-1 text-xs font-medium text-indigo-100 hover:text-white"
+            >
+              ← Back to Assessment Questions
+            </button>
 
-                <h1 className="text-2xl font-bold text-white sm:text-3xl">
-                  Assessment Question
-                </h1>
+            <h1 className="text-lg font-bold text-white sm:text-xl">
+              Assessment Question Details
+            </h1>
 
-                <p className="mt-1 text-sm text-white/70 sm:text-base">
-                  View the complete assignment and marking
-                  details for this assessment question.
-                </p>
-              </div>
+            <p className="text-xs text-white/60">
+              Question #{assessmentQuestion.order} · {assessmentName}
+            </p>
+          </div>
 
-              <button
-                type="button"
-                onClick={() =>
-                  navigate(
-                    `/assessment-questions/${id}/edit`,
-                  )
-                }
-                className="inline-flex h-12 items-center justify-center rounded-xl bg-gradient-to-r from-cyan-500 via-sky-600 to-blue-700 px-6 font-semibold text-white shadow-lg transition hover:from-indigo-600 hover:via-purple-600 hover:to-pink-600 hover:shadow-xl active:scale-[0.98]"
-              >
-                Edit Question
-              </button>
+          <button
+            type="button"
+            onClick={() => navigate(`/assessment-questions/${id}/edit`)}
+            className="rounded-lg bg-gradient-to-r from-cyan-500 to-blue-700 px-4 py-2 text-sm font-semibold text-white shadow hover:opacity-90"
+          >
+            Edit Question
+          </button>
+        </div>
+
+        <div className="space-y-3 p-3">
+
+          {/* Summary Horizontal Bar */}
+          <div className="grid grid-cols-2 gap-2 rounded-xl border border-white/10 bg-white/5 p-3 sm:grid-cols-4">
+
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-cyan-200">
+                Order
+              </p>
+              <p className="text-lg font-bold text-white">
+                {assessmentQuestion.order}
+              </p>
+            </div>
+
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-200">
+                Marks
+              </p>
+              <p className="text-lg font-bold text-white">
+                {assessmentQuestion.marks}
+              </p>
+            </div>
+
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-red-200">
+                Negative Marks
+              </p>
+              <p className="text-lg font-bold text-white">
+                {assessmentQuestion.negativeMarks || 0}
+              </p>
+            </div>
+
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-purple-200">
+                Question Type
+              </p>
+              <p className="text-sm font-semibold text-white">
+                {assessmentQuestion.question?.questionType || "—"}
+              </p>
             </div>
           </div>
 
-          <div className="space-y-6 px-5 py-6 sm:px-8 sm:py-8">
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
-                <p className="text-xs font-semibold uppercase tracking-wider text-cyan-200">
-                  Order
-                </p>
+          {/* Assessment Information - Horizontal */}
+          <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+            <h2 className="mb-2 text-sm font-bold text-white">
+              Assessment Information
+            </h2>
 
-                <p className="mt-2 text-3xl font-bold text-white">
-                  {assessmentQuestion.order}
-                </p>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
 
-                <p className="mt-1 text-sm text-white/50">
-                  Question position
+              <div className="min-w-0">
+                <p className="text-[10px] uppercase text-white/50">
+                  Assessment
+                </p>
+                <p className="truncate text-sm font-semibold text-white">
+                  {assessmentName}
                 </p>
               </div>
 
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
-                <p className="text-xs font-semibold uppercase tracking-wider text-emerald-200">
-                  Marks
+              <div className="min-w-0">
+                <p className="text-[10px] uppercase text-white/50">
+                  Section
                 </p>
-
-                <p className="mt-2 text-3xl font-bold text-white">
-                  {assessmentQuestion.marks}
-                </p>
-
-                <p className="mt-1 text-sm text-white/50">
-                  Positive marks
+                <p className="truncate text-sm font-semibold text-white">
+                  {sectionName}
                 </p>
               </div>
 
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
-                <p className="text-xs font-semibold uppercase tracking-wider text-red-200">
-                  Negative Marks
+              <div className="min-w-0">
+                <p className="text-[10px] uppercase text-white/50">
+                  Question Group
                 </p>
+                <p className="truncate text-sm font-semibold text-white">
+                  {questionGroupName}
+                </p>
+              </div>
 
-                <p className="mt-2 text-3xl font-bold text-white">
-                  {assessmentQuestion.negativeMarks || 0}
+              <div className="min-w-0">
+                <p className="text-[10px] uppercase text-white/50">
+                  Choice Group
                 </p>
+                <p className="truncate text-sm font-semibold text-white">
+                  {choiceGroupName}
+                </p>
+              </div>
+            </div>
+          </div>
 
-                <p className="mt-1 text-sm text-white/50">
-                  Deduction for incorrect answer
-                </p>
+          {/* Question Preview */}
+          <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+              <h2 className="text-sm font-bold text-white">
+                Question Preview
+              </h2>
+
+              <div className="flex flex-wrap gap-1">
+                <span className="rounded-full bg-cyan-400/10 px-2 py-1 text-[10px] font-semibold text-cyan-200">
+                  {assessmentQuestion.question?.questionType}
+                </span>
+
+                <span className="rounded-full bg-purple-400/10 px-2 py-1 text-[10px] font-semibold text-purple-200">
+                  {assessmentQuestion.question?.answerEditorConfiguration?.answerMode || "Unknown Editor"}
+                </span>
               </div>
             </div>
 
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-5 sm:p-6">
-              <div className="mb-5">
-                <h2 className="text-xl font-bold text-white">
-                  Assignment Information
-                </h2>
-
-                <p className="mt-1 text-sm text-white/60">
-                  Assessment and section associated with this
-                  question.
-                </p>
+            {assessmentQuestion.question ? (
+              <div className="rounded-lg bg-white p-3 sm:p-4">
+                <TeacherQuestionPreview
+                  question={assessmentQuestion.question}
+                />
               </div>
+            ) : (
+              <p className="text-sm text-red-200">
+                Question information is not available.
+              </p>
+            )}
 
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-white/40">
-                    Assessment
+            {/* Correct Answer */}
+            {assessmentQuestion.question?.questionType === "MCQ" && (
+              <div className="mt-2 rounded-lg border border-emerald-300/20 bg-emerald-400/10 px-3 py-2">
+                <span className="text-xs font-semibold text-emerald-200">
+                  Correct Answer:{" "}
+                </span>
+
+                <span className="text-sm font-medium text-white">
+                  {typeof assessmentQuestion.question.correctAnswer === "string"
+                    ? assessmentQuestion.question.correctAnswer
+                    : JSON.stringify(
+                        assessmentQuestion.question.correctAnswer
+                      )}
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* Configuration and Marking - Horizontal */}
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+
+            {/* Editor Configuration */}
+            <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+              <h2 className="mb-2 text-sm font-bold text-white">
+                Editor Configuration
+              </h2>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <p className="text-[10px] text-white/50">Configuration</p>
+                  <p className="text-sm font-medium text-white">
+                    {assessmentQuestion.question?.answerEditorConfiguration?.name || "Not configured"}
                   </p>
-
-                  <p className="mt-2 text-base font-semibold text-white">
-                    {assessmentName}
-                  </p>
-
-                  {assessmentQuestion.assessment?.code && (
-                    <p className="mt-1 text-xs text-white/50">
-                      Code:{" "}
-                      {assessmentQuestion.assessment.code}
-                    </p>
-                  )}
                 </div>
 
-                <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-white/40">
-                    Section
+                <div>
+                  <p className="text-[10px] text-white/50">Configuration Code</p>
+                  <p className="text-sm font-medium text-white">
+                    {assessmentQuestion.question?.answerEditorConfiguration?.code || "—"}
                   </p>
-
-                  <p className="mt-2 text-base font-semibold text-white">
-                    {sectionName}
-                  </p>
-
-                  {assessmentQuestion.section?.code && (
-                    <p className="mt-1 text-xs text-white/50">
-                      Code:{" "}
-                      {assessmentQuestion.section.code}
-                    </p>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-5 sm:p-6">
-              <div className="mb-5">
-                <h2 className="text-xl font-bold text-white">
-                  Question
-                </h2>
-
-                <p className="mt-1 text-sm text-white/60">
-                  The question assigned to this assessment.
-                </p>
-              </div>
-
-              <div className="rounded-2xl border border-cyan-300/10 bg-gradient-to-r from-cyan-400/10 to-blue-500/10 p-5">
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-cyan-400/20 text-lg font-bold text-cyan-100">
-                    {assessmentQuestion.order}
-                  </div>
-
-                  <div className="min-w-0 flex-1">
-                    <p className="text-lg font-semibold leading-7 text-white">
-                      {questionName}
-                    </p>
-
-                    {assessmentQuestion.question?.code && (
-                      <p className="mt-2 text-xs text-white/50">
-                        Question Code:{" "}
-                        {assessmentQuestion.question.code}
-                      </p>
-                    )}
-
-                    {assessmentQuestion.question?.type && (
-                      <span className="mt-3 inline-flex rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-white/70">
-                        {assessmentQuestion.question.type}
-                      </span>
-                    )}
-                  </div>
                 </div>
               </div>
             </div>
 
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-5 sm:p-6">
-              <div className="mb-5">
-                <h2 className="text-xl font-bold text-white">
-                  Grouping
-                </h2>
+            {/* Marking and Record Details */}
+            <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+              <h2 className="mb-2 text-sm font-bold text-white">
+                Marking & Record Details
+              </h2>
 
-                <p className="mt-1 text-sm text-white/60">
-                  Question and choice group associations.
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <div className="rounded-xl border border-purple-300/10 bg-purple-400/10 p-4">
-                  <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-purple-400/20 text-purple-100">
-                    #
-                  </div>
-
-                  <p className="text-xs font-semibold uppercase tracking-wider text-purple-200">
-                    Question Group
-                  </p>
-
-                  <p className="mt-2 font-semibold text-white">
-                    {questionGroupName}
-                  </p>
-
-                  {assessmentQuestion.questionGroup?.code && (
-                    <p className="mt-1 text-xs text-white/50">
-                      Code:{" "}
-                      {
-                        assessmentQuestion.questionGroup
-                          .code
-                      }
-                    </p>
-                  )}
-                </div>
-
-                <div className="rounded-xl border border-cyan-300/10 bg-cyan-400/10 p-4">
-                  <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-cyan-400/20 text-cyan-100">
-                    ↔
-                  </div>
-
-                  <p className="text-xs font-semibold uppercase tracking-wider text-cyan-200">
-                    Choice Group
-                  </p>
-
-                  <p className="mt-2 font-semibold text-white">
-                    {choiceGroupName}
-                  </p>
-
-                  {assessmentQuestion.choiceGroup
-                    ?.code && (
-                    <p className="mt-1 text-xs text-white/50">
-                      Code:{" "}
-                      {
-                        assessmentQuestion.choiceGroup
-                          .code
-                      }
-                    </p>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-5 sm:p-6">
-              <div className="mb-5">
-                <h2 className="text-xl font-bold text-white">
-                  Marking Details
-                </h2>
-
-                <p className="mt-1 text-sm text-white/60">
-                  Marks configured for this assessment question.
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                <div className="rounded-xl bg-white/5 p-4">
-                  <p className="text-xs uppercase tracking-wider text-white/40">
-                    Marks
-                  </p>
-
-                  <p className="mt-2 text-2xl font-bold text-emerald-300">
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <p className="text-[10px] text-white/50">Positive Marks</p>
+                  <p className="text-sm font-semibold text-emerald-300">
                     {assessmentQuestion.marks}
                   </p>
                 </div>
 
-                <div className="rounded-xl bg-white/5 p-4">
-                  <p className="text-xs uppercase tracking-wider text-white/40">
-                    Negative Marks
-                  </p>
-
-                  <p className="mt-2 text-2xl font-bold text-red-300">
-                    {assessmentQuestion.negativeMarks ||
-                      0}
-                  </p>
-                </div>
-
-                <div className="rounded-xl bg-white/5 p-4">
-                  <p className="text-xs uppercase tracking-wider text-white/40">
-                    Order
-                  </p>
-
-                  <p className="mt-2 text-2xl font-bold text-cyan-300">
-                    {assessmentQuestion.order}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-5 sm:p-6">
-              <div className="mb-5">
-                <h2 className="text-xl font-bold text-white">
-                  Record Information
-                </h2>
-              </div>
-
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-wider text-white/40">
-                    Created
-                  </p>
-
-                  <p className="mt-2 text-sm text-white/80">
-                    {formatDate(
-                      assessmentQuestion.createdAt,
-                    )}
+                  <p className="text-[10px] text-white/50">Negative Marks</p>
+                  <p className="text-sm font-semibold text-red-300">
+                    {assessmentQuestion.negativeMarks || 0}
                   </p>
                 </div>
 
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-wider text-white/40">
-                    Last Updated
+                  <p className="text-[10px] text-white/50">Created</p>
+                  <p className="text-xs text-white/80">
+                    {formatDate(assessmentQuestion.createdAt)}
                   </p>
+                </div>
 
-                  <p className="mt-2 text-sm text-white/80">
-                    {formatDate(
-                      assessmentQuestion.updatedAt,
-                    )}
+                <div>
+                  <p className="text-[10px] text-white/50">Last Updated</p>
+                  <p className="text-xs text-white/80">
+                    {formatDate(assessmentQuestion.updatedAt)}
                   </p>
                 </div>
               </div>
-            </div>
-
-            <div className="flex flex-col gap-3 border-t border-white/10 pt-6 sm:flex-row sm:justify-end">
-              <button
-                type="button"
-                onClick={() =>
-                  navigate("/assessment-questions")
-                }
-                className="h-12 rounded-xl border border-white/20 bg-white/10 px-6 font-semibold text-white transition hover:bg-white/20"
-              >
-                Back to Questions
-              </button>
-
-              <button
-                type="button"
-                onClick={() =>
-                  navigate(
-                    `/assessment-questions/${id}/edit`,
-                  )
-                }
-                className="h-12 rounded-xl bg-gradient-to-r from-cyan-500 via-sky-600 to-blue-700 px-7 font-semibold text-white shadow-lg transition hover:from-indigo-600 hover:via-purple-600 hover:to-pink-600 hover:shadow-xl active:scale-[0.98]"
-              >
-                Edit Question
-              </button>
             </div>
           </div>
+
+          {/* Footer */}
+          <div className="flex justify-end gap-2 border-t border-white/10 pt-3">
+            <button
+              type="button"
+              onClick={() => navigate("/assessment-questions")}
+              className="rounded-lg border border-white/20 bg-white/10 px-4 py-2 text-xs font-semibold text-white hover:bg-white/20"
+            >
+              Back
+            </button>
+
+            <button
+              type="button"
+              onClick={() => navigate(`/assessment-questions/${id}/edit`)}
+              className="rounded-lg bg-gradient-to-r from-cyan-500 to-blue-700 px-4 py-2 text-xs font-semibold text-white hover:opacity-90"
+            >
+              Edit Question
+            </button>
+          </div>
+
         </div>
       </div>
     </div>
-  );
+  </div>
+);
+
 };
 
 export default AssessmentQuestionDetailsScreen;

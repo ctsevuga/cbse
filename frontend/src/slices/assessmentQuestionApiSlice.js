@@ -219,6 +219,53 @@ export const assessmentQuestionApiSlice =
           keepUnusedDataFor: 5,
         }),
 
+
+/*
+======================================================
+Get Assessment Questions For Configuration
+======================================================
+
+Retrieves all questions assigned to an assessment,
+across all assessment sections.
+
+Used by the assessment question configuration screen
+to display previously assigned questions.
+*/
+getAssessmentQuestionsForConfiguration:
+  builder.query({
+    query: (assessmentId) => ({
+      url: `${ASSESSMENT_QUESTION_URL}/${assessmentId}/configuration-questions`,
+    }),
+
+    providesTags: (
+      result,
+      error,
+      assessmentId
+    ) =>
+      result?.questions
+        ? [
+            ...result.questions.map(
+              (assessmentQuestion) => ({
+                type: "AssessmentQuestion",
+                id: assessmentQuestion._id,
+              })
+            ),
+            {
+              type: "AssessmentQuestion",
+              id: `CONFIGURATION-${assessmentId}`,
+            },
+          ]
+        : [
+            {
+              type: "AssessmentQuestion",
+              id: `CONFIGURATION-${assessmentId}`,
+            },
+          ],
+
+    keepUnusedDataFor: 5,
+  }),
+
+
       /*
       ======================================================
       Get Questions By Question Group
@@ -517,6 +564,7 @@ export const {
   useGetAssessmentQuestionsQuery,
   useGetAssessmentQuestionDetailsQuery,
   useGetQuestionsByAssessmentQuery,
+  useGetAssessmentQuestionsForConfigurationQuery,
   useGetQuestionsBySectionQuery,
   useGetQuestionsByQuestionGroupQuery,
   useGetQuestionsByChoiceGroupQuery,
